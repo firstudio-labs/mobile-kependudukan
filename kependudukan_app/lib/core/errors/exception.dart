@@ -16,7 +16,6 @@ class CacheException implements Exception {
   String toString() => 'CacheException: $message';
 }
 
-
 class AuthException implements Exception {
   final String message;
 
@@ -25,7 +24,6 @@ class AuthException implements Exception {
   @override
   String toString() => 'AuthException: $message';
 }
-
 
 class ValidationException implements Exception {
   final String message;
@@ -36,7 +34,6 @@ class ValidationException implements Exception {
   String toString() => 'ValidationException: $message';
 }
 
-
 class PermissionException implements Exception {
   final String message;
 
@@ -45,7 +42,6 @@ class PermissionException implements Exception {
   @override
   String toString() => 'PermissionException: $message';
 }
-
 
 class NotFoundException implements Exception {
   final String message;

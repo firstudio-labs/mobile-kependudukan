@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/presentation/blocs/auth/auth_bloc.dart';
-import 'package:flutter_kependudukan/presentation/blocs/auth/auth_event.dart';
-import 'package:flutter_kependudukan/presentation/blocs/auth/auth_state.dart';
-import 'package:flutter_kependudukan/presentation/pages/auth/register_page.dart';
-import 'package:flutter_kependudukan/presentation/pages/home/penduduk_home_page.dart';
+import 'package:ladimas/presentation/blocs/auth/auth_bloc.dart';
+import 'package:ladimas/presentation/blocs/auth/auth_event.dart';
+import 'package:ladimas/presentation/blocs/auth/auth_state.dart';
+import 'package:ladimas/presentation/pages/auth/register_page.dart';
+import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
+import 'package:ladimas/presentation/pages/beranda/admin_beranda_page.dart';
 
 class LoginFormValidator {
   static String? validateNik(String? value) {
@@ -40,6 +41,7 @@ class _LoginPageState extends State<LoginPage>
   bool _isPasswordVisible = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  bool _loginSebagaiAdmin = false;
 
   @override
   void initState() {
@@ -98,7 +100,27 @@ class _LoginPageState extends State<LoginPage>
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => PendudukHomePage(penduduk: state.penduduk),
+                builder: (_) => BerandaPage(penduduk: state.penduduk),
+              ),
+            );
+          } else if (state is AdminAuthenticated) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Login admin berhasil'),
+                backgroundColor: Colors.green.shade700,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                margin: const EdgeInsets.all(12),
+                duration: const Duration(seconds: 1),
+              ),
+            );
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AdminBerandaPage(adminData: state.adminData),
               ),
             );
           }
@@ -159,21 +181,36 @@ class _LoginPageState extends State<LoginPage>
                                 // App title on top wave
                                 const Padding(
                                   padding: EdgeInsets.only(bottom: 20),
-                                  child: Text(
-                                    'Aplikasi Kependudukan',
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      letterSpacing: 0.8,
-                                      shadows: [
-                                        Shadow(
-                                          blurRadius: 10.0,
-                                          color: Colors.black26,
-                                          offset: Offset(0, 3),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'LADIMAS',
+                                        style: TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: 0.8,
+                                          shadows: [
+                                            Shadow(
+                                              blurRadius: 10.0,
+                                              color: Colors.black26,
+                                              offset: Offset(0, 3),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Layanan Digital Masyarakat',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white70,
+                                          letterSpacing: 0.5,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
                                   ),
                                 ),
 
@@ -249,15 +286,57 @@ class _LoginPageState extends State<LoginPage>
                                             ),
                                             const SizedBox(height: 30),
 
-                                            // NIK field
+                                            // Toggle login sebagai admin
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.end,
+                                              children: [
+                                                Switch(
+                                                  value: _loginSebagaiAdmin,
+                                                  onChanged: (v) {
+                                                    setState(() {
+                                                      _loginSebagaiAdmin = v;
+                                                    });
+                                                  },
+                                                  activeColor:
+                                                      const Color(0xFF4A47DC),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                const Text(
+                                                  'Login sebagai Admin',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFF4A47DC),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+
+                                            // Username/NIK field
                                             _buildTextField(
                                               controller: _nikController,
-                                              label: 'NIK (16 digit)',
-                                              icon: Icons.credit_card,
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              validator: LoginFormValidator
-                                                  .validateNik,
+                                              label: _loginSebagaiAdmin
+                                                  ? 'NIK Admin'
+                                                  : 'NIK Penduduk (16 digit)',
+                                              icon: _loginSebagaiAdmin
+                                                  ? Icons.badge
+                                                  : Icons.credit_card,
+                                              keyboardType: _loginSebagaiAdmin
+                                                  ? TextInputType.text
+                                                  : TextInputType.number,
+                                              validator: (v) {
+                                                if (v == null || v.isEmpty) {
+                                                  return _loginSebagaiAdmin
+                                                      ? 'Username/NIK tidak boleh kosong'
+                                                      : 'NIK tidak boleh kosong';
+                                                }
+                                                if (!_loginSebagaiAdmin &&
+                                                    v.length != 16) {
+                                                  return 'NIK harus 16 digit';
+                                                }
+                                                return null;
+                                              },
                                             ),
                                             const SizedBox(height: 20),
 
@@ -291,18 +370,34 @@ class _LoginPageState extends State<LoginPage>
                                                         if (_formKey
                                                             .currentState!
                                                             .validate()) {
-                                                          context
-                                                              .read<AuthBloc>()
-                                                              .add(
-                                                                LoginPendudukEvent(
-                                                                  nik:
-                                                                      _nikController
-                                                                          .text,
-                                                                  password:
-                                                                      _passwordController
-                                                                          .text,
-                                                                ),
-                                                              );
+                                                          if (_loginSebagaiAdmin) {
+                                                            context
+                                                                .read<
+                                                                    AuthBloc>()
+                                                                .add(
+                                                                  LoginAdminEvent(
+                                                                    nikOrUsername:
+                                                                        _nikController
+                                                                            .text,
+                                                                    password:
+                                                                        _passwordController
+                                                                            .text,
+                                                                  ),
+                                                                );
+                                                          } else {
+                                                            context
+                                                                .read<
+                                                                    AuthBloc>()
+                                                                .add(
+                                                                  LoginPendudukEvent(
+                                                                    nik: _nikController
+                                                                        .text,
+                                                                    password:
+                                                                        _passwordController
+                                                                            .text,
+                                                                  ),
+                                                                );
+                                                          }
                                                         }
                                                       },
                                                 style: ElevatedButton.styleFrom(

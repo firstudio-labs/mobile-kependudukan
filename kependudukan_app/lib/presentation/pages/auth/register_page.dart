@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/utils/form_validators.dart';
-import 'package:flutter_kependudukan/presentation/blocs/auth/auth_bloc.dart';
-import 'package:flutter_kependudukan/presentation/blocs/auth/auth_event.dart';
-import 'package:flutter_kependudukan/presentation/blocs/auth/auth_state.dart';
-import 'package:flutter_kependudukan/presentation/pages/auth/login_page.dart';
-import 'package:flutter_kependudukan/presentation/widgets/common/app_form_field.dart';
-import 'package:flutter_kependudukan/presentation/widgets/custom_button.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/utils/form_validators.dart';
+import 'package:ladimas/presentation/blocs/auth/auth_bloc.dart';
+import 'package:ladimas/presentation/blocs/auth/auth_event.dart';
+import 'package:ladimas/presentation/blocs/auth/auth_state.dart';
+import 'package:ladimas/presentation/pages/auth/login_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_form_field.dart';
+import 'package:ladimas/presentation/widgets/custom_button.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);

@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/errors/exception.dart';
-import 'package:flutter_kependudukan/data/datasources/auth_local_storage.dart';
-import 'package:flutter_kependudukan/data/models/laporan_model.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/errors/exception.dart';
+import 'package:ladimas/data/datasources/auth_local_storage.dart';
+import 'package:ladimas/data/models/laporan_model.dart';
+import 'package:ladimas/core/services/cache_service.dart';
+import 'package:ladimas/core/services/persistent_cache_service.dart';
 
 class RuangLingkupData {
   final int id;
@@ -46,11 +48,29 @@ class RuangLingkupData {
 class VillageReportApiService {
   final http.Client client;
   final AuthLocalStorage authLocalStorage;
+  final CacheService _cache = CacheService();
+  final Duration _ttl = const Duration(minutes: 1); // Kurangi dari 5 menit ke 1 menit
+  final PersistentCacheService _persistent = PersistentCacheService();
 
   VillageReportApiService({
     required this.client,
     required this.authLocalStorage,
   });
+
+  // Method untuk clear cache village report
+  Future<void> clearCache() async {
+    try {
+      // Clear in-memory cache
+      _cache.clear();
+
+      // Clear persistent cache
+      await _persistent.clear();
+
+      print('✅ Village report cache cleared');
+    } catch (e) {
+      print('❌ Error clearing village report cache: $e');
+    }
+  }
 
   Future<String> _getAuthToken() async {
     final token = await authLocalStorage.getStoredToken();
@@ -108,8 +128,28 @@ class VillageReportApiService {
     }
   }
 
-  Future<List<VillageReportModel>> getVillageReports() async {
+  Future<List<VillageReportModel>> getVillageReports(
+      {bool forceRefresh = false}) async {
     try {
+      final key = 'village_reports_list';
+
+      // Check cache first unless forced refresh
+      if (!forceRefresh) {
+        final cached = _cache.get<List<VillageReportModel>>(key);
+        if (cached != null) return cached;
+
+        // Try persistent cache
+        final persisted = await _persistent.getJson<List<dynamic>>(key);
+        if (persisted != null) {
+          final restored = persisted
+              .whereType<Map<String, dynamic>>()
+              .map((e) => VillageReportModel.fromJson(e))
+              .toList();
+          _cache.set<List<VillageReportModel>>(key, restored, ttl: _ttl);
+          return restored;
+        }
+      }
+
       final token = await _getAuthToken();
 
       final response = await client.get(
@@ -126,9 +166,19 @@ class VillageReportApiService {
         if (jsonResponse['status'] == 'success' &&
             jsonResponse['data'] is List) {
           final List<dynamic> reportsData = jsonResponse['data'];
-          return reportsData
+          final result = reportsData
               .map((report) => VillageReportModel.fromJson(report))
               .toList();
+
+          // Cache the result
+          _cache.set<List<VillageReportModel>>(key, result, ttl: _ttl);
+          await _persistent.setJson(
+            key,
+            result.map((e) => e.toJson()).toList(),
+            ttl: _ttl,
+          );
+
+          return result;
         } else {
           throw ServerException(
               message:
@@ -155,6 +205,9 @@ class VillageReportApiService {
     required String tagLokasi,
     required File gambar,
     required int ruangLingkupId,
+    double? tagLat,
+    double? tagLng,
+    String? locationAddress,
   }) async {
     try {
       final token = await _getAuthToken();
@@ -174,6 +227,17 @@ class VillageReportApiService {
       request.fields['deskripsi_laporan'] = deskripsiLaporan;
       request.fields['tag_lokasi'] = tagLokasi;
 
+      // Tambahkan field koordinat terpisah dan alamat lokasi bila tersedia (sesuai API)
+      if (tagLat != null) {
+        request.fields['tag_lat'] = tagLat.toStringAsFixed(6);
+      }
+      if (tagLng != null) {
+        request.fields['tag_lng'] = tagLng.toStringAsFixed(6);
+      }
+      if (locationAddress != null && locationAddress.trim().isNotEmpty) {
+        request.fields['location_address'] = locationAddress.trim();
+      }
+
       // Fix for the int conversion issue
       if (ruangLingkupId <= 0) {
         throw ServerException(message: 'ID ruang lingkup tidak valid');
@@ -181,8 +245,6 @@ class VillageReportApiService {
 
       // Make sure we send a string representation of the integer
       request.fields['lapor_desa_id'] = ruangLingkupId.toString();
-
-     
 
       // Add image file
       final imageFile =
@@ -192,8 +254,6 @@ class VillageReportApiService {
       // Send request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-
-      
 
       // Handle response
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -209,7 +269,7 @@ class VillageReportApiService {
         }
       } else {
         final errorResponse = json.decode(response.body);
-        
+
         throw ServerException(
             message:
                 'Gagal membuat laporan: ${response.statusCode} - ${errorResponse['message'] ?? "Unknown error"}');
@@ -218,7 +278,7 @@ class VillageReportApiService {
       if (e is AuthException || e is ServerException) {
         rethrow;
       }
-     
+
       if (e
           .toString()
           .contains("type 'String' is not a subtype of type 'int'")) {

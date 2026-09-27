@@ -46,3 +46,9 @@ app.*.map.json
 
 # Environment files
 .env
+
+# Keystore files (sensitive)
+android/key.properties
+android/app/keystore/
+*.jks
+*.keystore

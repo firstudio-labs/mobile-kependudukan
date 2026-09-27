@@ -1,12 +1,12 @@
-name: flutter_kependudukan
-description: "A new Flutter project."
+name: ladimas
+description: "Aplikasi LADIMAS - Sistem Kependudukan Digital"
 
-publish_to: 'none'
+publish_to: "none"
 
-version: 1.0.0+1
+version: 1.0.0+3
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -16,45 +16,79 @@ dependencies:
   # UI
   cupertino_icons: ^1.0.2
   google_fonts: ^5.1.0 # Updated from 3.0.
-  
+
   #dotenv
   flutter_dotenv: ^5.1.0
-  
+
   # State Management
   flutter_bloc: ^8.1.3
   get_it: ^7.6.0
   equatable: ^2.0.5
   dartz: ^0.10.1
-  
+
   # Network
   http: ^1.1.0
   internet_connection_checker: ^1.0.0
   webview_flutter: ^4.4.2
-  
+
   # Storage
   flutter_secure_storage: ^8.0.0
   sqflite: ^2.3.0
   path: ^1.8.3
   path_provider: ^2.1.2
-  
+
   # Map related packages
   flutter_map: ^6.0.0 # Updated from 3.1.0
   latlong2: ^0.9.0
-  
+
+  # Location services
+  geolocator: ^10.1.0
+
   # Other utilities
   intl: ^0.18.0
   url_launcher: ^6.3.1
 
+  # Render HTML konten pengumuman
+  flutter_html: ^3.0.0-beta.2
+
   #image picker
   image_picker: ^1.0.4
+
+  # Image compression and conversion
+  flutter_image_compress: ^2.1.0
+
+  # Camera with overlay
+  camera: ^0.10.5
+
+  # File picker for documents
+  file_picker: ^6.1.0
+
+  # Image cropping
+  image_cropper: ^8.0.2
+
+  # Charts
+  fl_chart: ^0.68.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.14.1
+  image: ^4.2.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/app_icon_padded.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/app_icon_padded.png
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/
 
+dependency_overrides:
+  image_cropper_platform_interface: 7.1.0

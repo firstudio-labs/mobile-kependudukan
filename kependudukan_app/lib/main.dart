@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/core/di/injection_container.dart' as di;
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
-import 'package:flutter_kependudukan/core/utils/db_helper.dart';
-import 'package:flutter_kependudukan/presentation/blocs/auth/auth_bloc.dart';
-import 'package:flutter_kependudukan/presentation/cubits/asset/asset_cubit.dart';
-import 'package:flutter_kependudukan/presentation/cubits/document/document_cubit.dart';
-import 'package:flutter_kependudukan/presentation/cubits/domisili/domisili_cubit.dart';
-import 'package:flutter_kependudukan/presentation/cubits/family/family_cubit.dart';
-import 'package:flutter_kependudukan/presentation/pages/splash/splash_page.dart';
+import 'package:ladimas/core/di/injection_container.dart' as di;
+import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/db_helper.dart';
+import 'package:ladimas/presentation/blocs/auth/auth_bloc.dart';
+import 'package:ladimas/presentation/cubits/asset/asset_cubit.dart';
+import 'package:ladimas/presentation/cubits/document/document_cubit.dart';
+import 'package:ladimas/presentation/cubits/domisili/domisili_cubit.dart';
+import 'package:ladimas/presentation/cubits/family/family_cubit.dart';
+import 'package:ladimas/presentation/pages/splash/splash_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<DocumentCubit>()),
       ],
       child: MaterialApp(
-        title: 'Aplikasi Kependudukan',
+        title: 'LADIMAS',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: const SplashScreen(),

@@ -1,16 +1,21 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
-import 'package:flutter_kependudukan/data/models/document_model.dart';
-import 'package:flutter_kependudukan/presentation/cubits/document/document_cubit.dart';
-import 'package:flutter_kependudukan/presentation/cubits/document/document_state.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/image_utils.dart';
+import 'package:ladimas/data/models/document_model.dart';
+import 'package:ladimas/presentation/cubits/document/document_cubit.dart';
+import 'package:ladimas/presentation/cubits/document/document_state.dart';
+import 'package:ladimas/presentation/pages/camera_document_page.dart';
 import 'package:get_it/get_it.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:file_picker/file_picker.dart';
 
 class FamilyMemberDocumentsPage extends StatefulWidget {
   final String nik;
@@ -43,18 +48,172 @@ class _FamilyMemberDocumentsPageState extends State<FamilyMemberDocumentsPage> {
 
   Future<void> _selectAndUploadDocument(
       String documentType, String documentTitle) async {
-    final ImagePicker picker = ImagePicker();
-
     try {
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        imageQuality: 80,
+      // Show source selection dialog
+      final String? source = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Upload $documentTitle'),
+          content: const Text(
+              'Pilih sumber gambar atau dokumen yang ingin diupload:'),
+          actions: [
+            // Camera option
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'camera'),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.camera_alt, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('Kamera'),
+                ],
+              ),
+            ),
+
+            // Gallery option (images)
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'gallery'),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.photo_library, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text('Galeri'),
+                ],
+              ),
+            ),
+
+            // Document picker option (files)
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'document'),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.file_present, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Pilih Dokumen'),
+                ],
+              ),
+            ),
+
+            // Cancel
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
       );
 
-      if (image != null) {
-        final File file = File(image.path);
-        await _documentCubit.uploadDocument(widget.nik, documentType, file);
+      if (source == null) return;
+
+      File? imageFile;
+
+      if (source == 'camera') {
+        // Use custom camera with overlay (KTP overlay for foto_ktp)
+        imageFile = await Navigator.push<File>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DocumentCameraPage(
+              documentType: documentType,
+              documentTitle: documentTitle,
+            ),
+          ),
+        );
+      } else if (source == 'gallery') {
+        // Use gallery picker for images
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1024,
+          imageQuality: 80,
+        );
+
+        if (image != null) {
+          imageFile = File(image.path);
+        }
+      } else if (source == 'document') {
+        // Use file picker for documents (PDF, DOC, etc.)
+        try {
+          FilePickerResult? result = await FilePicker.platform.pickFiles(
+            type: FileType.custom,
+            allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+            allowMultiple: false,
+          );
+
+          if (result != null &&
+              result.files.isNotEmpty &&
+              result.files.single.path != null) {
+            final documentFile = File(result.files.single.path!);
+
+            // Check file size (max 10MB)
+            final fileSize = await documentFile.length();
+            if (fileSize > 10 * 1024 * 1024) {
+              // 10MB
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Ukuran file maksimal 10MB'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              return;
+            }
+
+            // For image files, compress them
+            final fileExtension = result.files.single.extension?.toLowerCase();
+            if (['jpg', 'jpeg', 'png'].contains(fileExtension)) {
+              // Process as image
+              imageFile = await ImageUtils.processImage(
+                documentFile,
+                quality: 85,
+                convertToWebP: false,
+              );
+            } else {
+              // For non-image files (PDF, DOC), use as is
+              imageFile = documentFile;
+            }
+
+            // Show processing message
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Memproses dokumen...'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          } else {
+            // User cancelled file picker
+            return;
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Gagal memilih dokumen: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+
+      if (imageFile != null) {
+        // Show uploading message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Mengupload dokumen...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Upload file directly - WebP conversion will be handled by backend
+        await _documentCubit.uploadDocument(
+            widget.nik, documentType, imageFile);
       }
     } catch (e) {
       if (mounted) {
@@ -140,11 +299,11 @@ class _FamilyMemberDocumentsPageState extends State<FamilyMemberDocumentsPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
                 'Dokumen berhasil disimpan di folder Download/Kependudukan'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
+            duration: Duration(seconds: 5),
           ),
         );
       }
@@ -249,7 +408,7 @@ class _FamilyMemberDocumentsPageState extends State<FamilyMemberDocumentsPage> {
           }
 
           // Ambil data dokumen dari state
-          FamilyMemberDocuments documents = FamilyMemberDocuments();
+          FamilyMemberDocuments documents = const FamilyMemberDocuments();
 
           if (state is DocumentLoaded) {
             documents = state.documents;
@@ -346,20 +505,21 @@ class _FamilyMemberDocumentsPageState extends State<FamilyMemberDocumentsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                         if (exists)
                           IconButton(
                             icon: const Icon(
@@ -370,18 +530,22 @@ class _FamilyMemberDocumentsPageState extends State<FamilyMemberDocumentsPage> {
                                 _confirmDelete(documentType, title),
                             tooltip: 'Hapus dokumen',
                           ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: () =>
-                              _selectAndUploadDocument(documentType, title),
-                          icon: const Icon(Icons.upload_file, size: 18),
-                          label: Text(exists ? 'Update' : 'Upload'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () =>
+                            _selectAndUploadDocument(documentType, title),
+                        icon: const Icon(Icons.upload_file, size: 18),
+                        label:
+                            Text(exists ? 'Update Dokumen' : 'Upload Dokumen'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -46,3 +46,13 @@ class CheckNikEvent extends AuthEvent {
 class LogoutEvent extends AuthEvent {}
 
 class AutoLoginEvent extends AuthEvent {}
+
+class LoginAdminEvent extends AuthEvent {
+  final String nikOrUsername;
+  final String password;
+
+  const LoginAdminEvent({required this.nikOrUsername, required this.password});
+
+  @override
+  List<Object?> get props => [nikOrUsername, password];
+}

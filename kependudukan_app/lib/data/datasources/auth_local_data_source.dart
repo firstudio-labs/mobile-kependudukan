@@ -1,6 +1,6 @@
-import 'package:flutter_kependudukan/core/errors/failures.dart';
-import 'package:flutter_kependudukan/core/utils/db_helper.dart';
-import 'package:flutter_kependudukan/data/models/penduduk_model.dart';
+import 'package:ladimas/core/errors/failures.dart';
+import 'package:ladimas/core/utils/db_helper.dart';
+import 'package:ladimas/data/models/penduduk_model.dart';
 import 'package:dartz/dartz.dart';
 
 abstract class AuthLocalDataSource {

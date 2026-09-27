@@ -2,12 +2,21 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:flutter_kependudukan/data/datasources/auth_local_storage.dart';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
+import 'package:ladimas/data/datasources/auth_local_storage.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:get_it/get_it.dart';
+import 'package:ladimas/domain/entities/penduduk.dart';
+import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
+import 'package:ladimas/presentation/pages/warungku/warungku_page.dart';
+import 'package:ladimas/presentation/pages/home/penduduk_home_page.dart';
+import 'package:ladimas/presentation/pages/tagihan/tagihan_page.dart';
+import 'package:ladimas/presentation/pages/profil_desa/profil_desa_page.dart';
+import 'package:ladimas/presentation/pages/riwayat-surat/riwayat_surat_page.dart';
 
 class DocumentServicesWebViewPage extends StatefulWidget {
-  const DocumentServicesWebViewPage({Key? key}) : super(key: key);
+  final Penduduk? penduduk;
+  const DocumentServicesWebViewPage({Key? key, this.penduduk})
+      : super(key: key);
 
   @override
   State<DocumentServicesWebViewPage> createState() =>
@@ -19,6 +28,7 @@ class _DocumentServicesWebViewPageState
   WebViewController? _controller;
   bool _isLoading = true;
   String? _errorMessage;
+  Penduduk? _currentPenduduk;
 
   // Location IDs
   int? _provinceId;
@@ -26,38 +36,97 @@ class _DocumentServicesWebViewPageState
   int? _subDistrictId;
   int? _villageId;
 
+  int? _toInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+    return int.tryParse(s);
+  }
+
   @override
   void initState() {
     super.initState();
+    _currentPenduduk = widget.penduduk;
     _loadUserData();
+  }
+
+  Penduduk? _getCurrentPenduduk() {
+    // Prioritize _currentPenduduk if it's complete, otherwise use widget.penduduk
+    if (_currentPenduduk != null &&
+        _currentPenduduk!.nik.isNotEmpty &&
+        _currentPenduduk!.token.isNotEmpty) {
+      return _currentPenduduk;
+    }
+
+    // Fallback to widget.penduduk if it's complete
+    if (widget.penduduk != null &&
+        widget.penduduk!.nik.isNotEmpty &&
+        widget.penduduk!.token.isNotEmpty) {
+      return widget.penduduk;
+    }
+
+    return null;
   }
 
   Future<void> _loadUserData() async {
     try {
-      // Get auth storage instance
-      final authLocalStorage = GetIt.instance<AuthLocalStorage>();
+      // Prioritize data from widget first, then fallback to local storage
+      if (widget.penduduk != null &&
+          widget.penduduk!.nik.isNotEmpty &&
+          widget.penduduk!.token.isNotEmpty) {
+        // Use data from widget if it's complete
+        _currentPenduduk = widget.penduduk;
+        await _loadUserLocationData(widget.penduduk!.nik);
+      } else {
+        // Fallback to local storage if widget data is incomplete
+        final authLocalStorage = GetIt.instance<AuthLocalStorage>();
+        final userData = await authLocalStorage.getUserCredentials();
 
-      // Get stored user data (NIK)
-      final userData = await authLocalStorage.getUserCredentials();
-      if (userData == null) {
-        setState(() {
-          _errorMessage = 'User data not found. Please login again.';
-        });
-        return;
+        if (userData == null) {
+          setState(() {
+            _errorMessage = 'User data not found. Please login again.';
+          });
+          return;
+        }
+
+        final nik = userData['nik'];
+        if (nik == null || nik.toString().isEmpty) {
+          setState(() {
+            _errorMessage = 'NIK not found. Please login again.';
+          });
+          return;
+        }
+
+        // Create Penduduk object from stored data
+        _currentPenduduk = Penduduk(
+          nik: nik.toString(),
+          name: userData['name']?.toString() ?? 'Penduduk',
+          noHp: userData['no_hp']?.toString() ?? '',
+          token: userData['token']?.toString() ?? '',
+        );
+
+        // Get user details including location data
+        await _loadUserLocationData(nik.toString());
       }
 
-      final nik = userData['nik'];
-
-      // Get user details including location data
-      await _loadUserLocationData(nik);
-
       // Initialize WebView after data is loaded
-      if (_provinceId != null &&
-          _districtId != null &&
-          _subDistrictId != null &&
-          _villageId != null) {
+      // Kalau ada error dari fetch citizen, jangan timpa dengan pesan generik.
+      if (_errorMessage != null) return;
+
+      // Validasi ID lokasi: harus ada dan > 0 (karena dipakai untuk membangun URL webview)
+      final ok = (_provinceId ?? 0) > 0 &&
+          (_districtId ?? 0) > 0 &&
+          (_subDistrictId ?? 0) > 0 &&
+          (_villageId ?? 0) > 0;
+
+      if (ok) {
         _initializeWebView();
       } else {
+        // ignore: avoid_print
+        print(
+            '[Portal] Location incomplete province=$_provinceId district=$_districtId subDistrict=$_subDistrictId village=$_villageId');
         setState(() {
           _errorMessage = 'Location data is incomplete. Please try again.';
         });
@@ -71,48 +140,45 @@ class _DocumentServicesWebViewPageState
 
   Future<void> _loadUserLocationData(String nik) async {
     try {
-      // Get user data from the penduduk API
+      // Optimasi: ambil detail 1 penduduk saja (bukan tarik /all-citizens).
       final response = await GetIt.instance<http.Client>().get(
-        Uri.parse('${AppConstants.apiUrl}/all-citizens'),
+        Uri.parse('${AppConstants.goBaseUrl}/api/citizens/$nik'),
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'X-API-KEY': AppConstants.apiKey,
+          'X-API-Key': AppConstants.apiKey,
         },
       );
 
-      if (response.statusCode == 200) {
-        final dynamic responseData = json.decode(response.body);
-
-        List<dynamic> citizens = [];
-        if (responseData is List) {
-          citizens = responseData;
-        } else if (responseData is Map<String, dynamic> &&
-            responseData.containsKey('data') &&
-            responseData['data'] is List) {
-          citizens = responseData['data'];
-        }
-
-        // Find the citizen with the matching NIK
-        for (var citizen in citizens) {
-          if (citizen['nik'].toString() == nik) {
-            setState(() {
-              _provinceId = citizen['province_id'] ?? 0;
-              _districtId = citizen['district_id'] ?? 0;
-              _subDistrictId = citizen['sub_district_id'] ?? 0;
-              _villageId = citizen['village_id'] ?? 0;
-            });
-            return;
-          }
-        }
-
-        setState(() {
-          _errorMessage = 'User with NIK $nik not found';
-        });
-      } else {
+      if (response.statusCode != 200) {
+        // ignore: avoid_print
+        print(
+            '[Portal] /api/citizens/$nik failed ${response.statusCode}: ${response.body}');
         setState(() {
           _errorMessage = 'Failed to fetch user data: ${response.statusCode}';
         });
+        return;
       }
+
+      final dynamic responseData = json.decode(response.body);
+      final citizen = (responseData is Map<String, dynamic>)
+          ? (responseData['data'] as Map<String, dynamic>?)
+          : null;
+      if (citizen == null) {
+        // ignore: avoid_print
+        print('[Portal] invalid citizen payload: ${response.body}');
+        setState(() {
+          _errorMessage = 'Format data penduduk tidak valid';
+        });
+        return;
+      }
+
+      setState(() {
+        _provinceId = _toInt(citizen['province_id']);
+        _districtId = _toInt(citizen['district_id']);
+        _subDistrictId = _toInt(citizen['sub_district_id']);
+        _villageId = _toInt(citizen['village_id']);
+      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Error fetching user location data: $e';
@@ -168,8 +234,25 @@ class _DocumentServicesWebViewPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Layanan Surat'),
+        // title: const Text('Layanan Surat'),
+        // backgroundColor: const Color(0xFF4A47DC),
+        foregroundColor: const Color(0xFF4A47DC),
         elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const RiwayatSuratPage(),
+                ),
+              );
+            },
+            tooltip: 'Riwayat Surat',
+          ),
+        ],
       ),
       body: _errorMessage != null
           ? Center(
@@ -198,7 +281,7 @@ class _DocumentServicesWebViewPageState
                       });
                       _loadUserData();
                     },
-                    child: const Text('Try Again'),
+                    child: const Text('Coba Lagi'),
                   ),
                 ],
               ),
@@ -213,6 +296,95 @@ class _DocumentServicesWebViewPageState
                   ),
               ],
             ),
+      bottomNavigationBar: BottomNavigationBar(
+        selectedItemColor: const Color(0xFF4A47DC),
+        unselectedItemColor: Colors.grey,
+        currentIndex: 5, // Portal Layanan Desa
+        type: BottomNavigationBarType.fixed,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        items: const [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home, size: 28), label: 'Beranda'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.storefront_sharp, size: 28), label: 'Warungku'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance, size: 28),
+              label: 'Profil Desa'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.description, size: 28), label: 'Portal'),
+        ],
+        onTap: (index) {
+          // Get penduduk data from widget
+          final penduduk = _getCurrentPenduduk();
+
+          if (penduduk == null ||
+              penduduk.nik.isEmpty ||
+              penduduk.token.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('Data penduduk tidak lengkap. Silakan login ulang.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+
+          switch (index) {
+            case 0:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BerandaPage(penduduk: penduduk),
+                ),
+              );
+              break;
+            case 1:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => WarungkuPage(penduduk: penduduk),
+                ),
+              );
+              break;
+            case 2:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PendudukHomePage(
+                    penduduk: penduduk,
+                    initialTabIndex: 0, // Berita Desa tab
+                  ),
+                ),
+              );
+              break;
+            case 3:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfilDesaPage(penduduk: penduduk),
+                ),
+              );
+              break;
+            case 4:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TagihanPage(penduduk: penduduk),
+                ),
+              );
+              break;
+            case 5:
+              // Current page - Portal Layanan Desa
+              break;
+          }
+        },
+      ),
     );
   }
 }

@@ -4,7 +4,10 @@ class FormValidators {
       return 'NIK tidak boleh kosong';
     }
     if (value.length != 16) {
-      return 'NIK harus 16 digit';
+      return 'NIK harus tepat 16 digit angka';
+    }
+    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return 'NIK hanya boleh berisi angka';
     }
     return null;
   }
@@ -23,6 +26,9 @@ class FormValidators {
     if (value == null || value.isEmpty) {
       return 'Nomor HP tidak boleh kosong';
     }
+    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return 'Nomor HP hanya boleh berisi angka';
+    }
     if (value.length < 10) {
       return 'Nomor HP minimal 10 digit';
     }
@@ -34,7 +40,7 @@ class FormValidators {
       return 'Konfirmasi password tidak boleh kosong';
     }
     if (value != password) {
-      return 'Konfirmasi password tidak cocok';
+      return 'Konfirmasi password tidak cocok dengan password';
     }
     return null;
   }

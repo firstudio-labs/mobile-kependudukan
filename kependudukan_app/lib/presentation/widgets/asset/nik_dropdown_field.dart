@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 

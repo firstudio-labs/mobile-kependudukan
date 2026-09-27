@@ -5,6 +5,7 @@ class VillageReportModel {
   final String deskripsiLaporan;
   final String gambar;
   final String tagLokasi;
+  final String lokasi; // alamat lokasi (jika tersedia)
   final String status;
   final int userId;
   final int villageId;
@@ -18,6 +19,7 @@ class VillageReportModel {
     required this.deskripsiLaporan,
     required this.gambar,
     required this.tagLokasi,
+    required this.lokasi,
     required this.status,
     required this.userId,
     required this.villageId,
@@ -42,6 +44,7 @@ class VillageReportModel {
       deskripsiLaporan: json['deskripsi_laporan'] ?? '',
       gambar: json['gambar'] ?? '',
       tagLokasi: json['tag_lokasi'] ?? '',
+      lokasi: json['lokasi'] ?? '',
       status: json['status'] ?? '',
       userId: parseIntSafely(json['user_id']),
       villageId: parseIntSafely(json['village_id']),
@@ -60,6 +63,7 @@ class VillageReportModel {
       'deskripsi_laporan': deskripsiLaporan,
       'gambar': gambar,
       'tag_lokasi': tagLokasi,
+      'lokasi': lokasi,
       'status': status,
       'user_id': userId,
       'village_id': villageId,

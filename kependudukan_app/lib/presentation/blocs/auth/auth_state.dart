@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter_kependudukan/domain/entities/penduduk.dart';
+import 'package:ladimas/domain/entities/penduduk.dart';
 
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -21,6 +21,15 @@ class PendudukAuthenticated extends AuthState {
 
   @override
   List<Object?> get props => [penduduk];
+}
+
+class AdminAuthenticated extends AuthState {
+  final Map<String, dynamic> adminData; // berisi user, role, token
+
+  const AdminAuthenticated({required this.adminData});
+
+  @override
+  List<Object?> get props => [adminData];
 }
 
 class NikExists extends AuthState {

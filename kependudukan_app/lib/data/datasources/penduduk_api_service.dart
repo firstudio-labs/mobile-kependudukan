@@ -1,23 +1,27 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter_kependudukan/data/datasources/auth_local_storage.dart';
-import 'package:flutter_kependudukan/data/models/document_model.dart';
+import 'package:ladimas/data/datasources/auth_local_storage.dart';
+import 'package:ladimas/data/models/document_model.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/errors/exception.dart';
-import 'package:flutter_kependudukan/domain/entities/penduduk.dart';
-import 'package:flutter_kependudukan/data/models/penduduk_model.dart';
-import 'package:flutter_kependudukan/core/services/wilayah_service.dart';
-import 'package:flutter_kependudukan/data/models/family_member_model.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/errors/exception.dart';
+import 'package:ladimas/domain/entities/penduduk.dart';
+import 'package:ladimas/data/models/penduduk_model.dart';
+import 'package:ladimas/core/services/wilayah_service.dart';
+import 'package:ladimas/data/models/family_member_model.dart';
+import 'package:ladimas/core/services/persistent_cache_service.dart';
 
 class PendudukApiService {
   final http.Client client;
   final WilayahService _wilayahService = WilayahService();
+  final PersistentCacheService _persistent = PersistentCacheService();
 
   final Map<String, dynamic> _cache = {};
   final Map<String, DateTime> _cacheTimestamp = {};
   final Duration _cacheDuration = const Duration(minutes: 15);
+
+  // Catatan: endpoint /all-citizens sudah tidak dipakai lagi (tidak scalable untuk 100k data).
 
   PendudukApiService({required this.client});
 
@@ -39,67 +43,33 @@ class PendudukApiService {
 
   Future<bool> checkNikExists(String nik) async {
     try {
+      final uri = Uri.parse('${AppConstants.goBaseUrl}/api/v2/citizens/exists')
+          .replace(queryParameters: {'nik': nik});
+
       final response = await client.get(
-        Uri.parse('${AppConstants.apiUrl}/all-citizens'),
+        uri,
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'X-API-KEY': AppConstants.apiKey,
+          'X-API-Key': AppConstants.apiKey,
         },
       );
 
-      if (response.statusCode == 200) {
-        try {
-          final dynamic responseData = json.decode(response.body);
+      if (response.statusCode != 200) {
+        throw ServerException(
+          message: 'Failed to check NIK: ${response.statusCode}',
+        );
+      }
 
-          if (responseData is List) {
-            return responseData.any(
-              (citizen) =>
-                  citizen is Map<String, dynamic> &&
-                  citizen['nik'] != null &&
-                  citizen['nik'].toString() == nik,
-            );
-          } else if (responseData is Map<String, dynamic>) {
-            if (responseData.containsKey('data') &&
-                responseData['data'] is List) {
-              List<dynamic> citizens = responseData['data'];
-              return citizens.any(
-                (citizen) =>
-                    citizen is Map<String, dynamic> &&
-                    citizen['nik'] != null &&
-                    citizen['nik'].toString() == nik,
-              );
-            }
-
-            if (responseData.containsKey('exists')) {
-              return responseData['exists'] == true;
-            }
-          }
-
-          throw ServerException(
-            message: 'Unable to determine if NIK exists from response',
-          );
-        } catch (e) {
-          if (e is ServerException) {
-            rethrow;
-          }
-          throw ServerException(
-            message: 'Error parsing NIK check response: ${e.toString()}',
-          );
-        }
-      } else {
-        try {
-          final errorData = json.decode(response.body);
-          throw ServerException(
-            message: errorData['message'] ??
-                'Check NIK failed: ${response.statusCode}',
-          );
-        } catch (e) {
-          throw ServerException(
-            message:
-                'Failed to check NIK: ${response.statusCode} - ${response.body.length > 100 ? '${response.body.substring(0, 100)}...' : response.body}',
-          );
+      final dynamic responseData = json.decode(response.body);
+      if (responseData is Map<String, dynamic>) {
+        final data = responseData['data'];
+        if (data is Map<String, dynamic> && data['exists'] != null) {
+          return data['exists'] == true;
         }
       }
+
+      throw ServerException(message: 'Format respons cek NIK tidak valid');
     } catch (e) {
       if (e is ServerException) {
         rethrow;
@@ -110,42 +80,12 @@ class PendudukApiService {
 
   Future<PendudukModel?> getPendudukByNik(String nik) async {
     try {
-      final response = await client.get(
-        Uri.parse('${AppConstants.apiUrl}/all-citizens'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': AppConstants.apiKey,
-        },
+      final detail = await getPendudukDetailByNik(nik);
+      return PendudukModel(
+        nik: detail['nik']?.toString() ?? nik,
+        noHp: (detail['no_hp'] ?? detail['telephone'] ?? '').toString(),
+        name: (detail['full_name'] ?? '').toString(),
       );
-
-      if (response.statusCode == 200) {
-        final dynamic responseData = json.decode(response.body);
-
-        List<dynamic> citizens = [];
-        if (responseData is List) {
-          citizens = responseData;
-        } else if (responseData is Map<String, dynamic> &&
-            responseData.containsKey('data') &&
-            responseData['data'] is List) {
-          citizens = responseData['data'];
-        }
-
-        for (var citizen in citizens) {
-          if (citizen['nik'].toString() == nik) {
-            return PendudukModel(
-              nik: nik,
-              noHp: citizen['no_hp'] ?? '',
-              name: citizen['full_name'] ?? '',
-            );
-          }
-        }
-
-        return null;
-      } else {
-        throw ServerException(
-          message: 'Failed to fetch data: ${response.statusCode}',
-        );
-      }
     } catch (e) {
       throw ServerException(
         message: 'Error fetching penduduk data: ${e.toString()}',
@@ -153,73 +93,149 @@ class PendudukApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getCitizensByVillageId(
+      int villageId) async {
+    try {
+      // Ambil data lite dari server (paginated, payload kecil)
+      final resp = await searchCitizensLite(
+        villageId: villageId,
+        search: '',
+        page: 1,
+        itemsPerPage: 200,
+      );
+      return resp;
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(
+          message: 'Error fetching citizens: ${e.toString()}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCitizensByVillageIdLiteExtended(
+      int villageId) async {
+    try {
+      final resp = await searchCitizensLite(
+        villageId: villageId,
+        search: '',
+        page: 1,
+        itemsPerPage: 200,
+      );
+      return resp;
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(
+          message: 'Error fetching citizens (extended): ${e.toString()}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllCitizensLite() async {
+    try {
+      return await searchCitizensLite(
+        search: '',
+        page: 1,
+        itemsPerPage: 200,
+      );
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(
+          message: 'Error fetching citizens: ${e.toString()}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllCitizensLiteExtended() async {
+    try {
+      return await searchCitizensLite(
+        search: '',
+        page: 1,
+        itemsPerPage: 200,
+      );
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(
+          message: 'Error fetching citizens (extended): ${e.toString()}');
+    }
+  }
+
+  /// Method cepat untuk mendapatkan KK saja tanpa memproses data lengkap
+  /// Digunakan untuk mempercepat loading menu keluarga
+  Future<String?> getKKByNik(String nik) async {
+    try {
+      final detail = await getPendudukDetailByNik(nik);
+      final kk = detail['kk']?.toString() ?? '';
+      return kk.isNotEmpty ? kk : null;
+    } catch (e) {
+      print('Error getting KK by NIK: $e');
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> getPendudukDetailByNik(String nik) async {
     try {
       final response = await client.get(
-        Uri.parse('${AppConstants.apiUrl}/all-citizens'),
+        Uri.parse('${AppConstants.goBaseUrl}/api/citizens/$nik'),
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'X-API-KEY': AppConstants.apiKey,
+          'X-API-Key': AppConstants.apiKey,
         },
       );
 
-      if (response.statusCode == 200) {
-        final dynamic responseData = json.decode(response.body);
-
-        List<dynamic> citizens = [];
-        if (responseData is List) {
-          citizens = responseData;
-        } else if (responseData is Map<String, dynamic> &&
-            responseData.containsKey('data') &&
-            responseData['data'] is List) {
-          citizens = responseData['data'];
-        }
-
-        for (var citizen in citizens) {
-          if (citizen['nik'].toString() == nik) {
-            final provinceId = citizen['province_id'] ?? 0;
-            final districtId = citizen['district_id'] ?? 0;
-            final subDistrictId = citizen['sub_district_id'] ?? 0;
-            final villageId = citizen['village_id'] ?? 0;
-
-            final locationNames = await _getLocationNames(
-              provinceId,
-              districtId,
-              subDistrictId,
-              villageId,
-            );
-
-            return {
-              'nik': citizen['nik']?.toString() ?? '',
-              'kk': citizen['kk']?.toString() ?? '',
-              'full_name': citizen['full_name'] ?? '',
-              'gender': citizen['gender'] ?? '',
-              'birth_date': citizen['birth_date'] ?? '',
-              'age': citizen['age'] ?? 0,
-              'birth_place': citizen['birth_place'] ?? '',
-              'address': citizen['address'] ?? '',
-              'province_id': provinceId,
-              'district_id': districtId,
-              'sub_district_id': subDistrictId,
-              'village_id': villageId,
-              'rt': citizen['rt'] ?? '',
-              'rw': citizen['rw'] ?? '',
-              'province_name': locationNames['province_name'],
-              'district_name': locationNames['district_name'],
-              'sub_district_name': locationNames['sub_district_name'],
-              'village_name': locationNames['village_name'],
-            };
-          }
-        }
-
+      if (response.statusCode != 200) {
         throw ServerException(
-          message: 'Data penduduk dengan NIK $nik tidak ditemukan',
-        );
-      } else {
-        throw ServerException(
-          message: 'Failed to fetch data: ${response.statusCode}',
+          message: 'Gagal mengambil detail penduduk: ${response.statusCode}',
         );
       }
+
+      final dynamic responseData = json.decode(response.body);
+      final citizen = (responseData is Map<String, dynamic>)
+          ? (responseData['data'] as Map<String, dynamic>?)
+          : null;
+      if (citizen == null) {
+        throw ServerException(message: 'Format data penduduk tidak valid');
+      }
+
+      final provinceId = citizen['province_id'] ?? 0;
+      final districtId = citizen['district_id'] ?? 0;
+      final subDistrictId = citizen['sub_district_id'] ?? 0;
+      final villageId = citizen['village_id'] ?? 0;
+
+      final locationNames = await _getLocationNames(
+        (provinceId is int) ? provinceId : int.tryParse('$provinceId') ?? 0,
+        (districtId is int) ? districtId : int.tryParse('$districtId') ?? 0,
+        (subDistrictId is int)
+            ? subDistrictId
+            : int.tryParse('$subDistrictId') ?? 0,
+        (villageId is int) ? villageId : int.tryParse('$villageId') ?? 0,
+      );
+
+      return {
+        'nik': citizen['nik']?.toString() ?? '',
+        'kk': citizen['kk']?.toString() ?? '',
+        'full_name': citizen['full_name'] ?? '',
+        'gender': citizen['gender'] ?? '',
+        'birth_date': citizen['birth_date'] ?? '',
+        'age': citizen['age'] ?? 0,
+        'birth_place': citizen['birth_place'] ?? '',
+        'address': citizen['address'] ?? '',
+        'province_id': provinceId,
+        'district_id': districtId,
+        'sub_district_id': subDistrictId,
+        'village_id': villageId,
+        'rt': citizen['rt'] ?? '',
+        'rw': citizen['rw'] ?? '',
+        'province_name': locationNames['province_name'],
+        'district_name': locationNames['district_name'],
+        'sub_district_name': locationNames['sub_district_name'],
+        'village_name': locationNames['village_name'],
+        'blood_type': citizen['blood_type'] ?? '',
+        'education_status': citizen['education_status'] ?? '',
+        'job_type_id': citizen['job_type_id'] ?? 0,
+        'religion': citizen['religion'] ?? '',
+        'marital_status': citizen['marital_status'] ?? '',
+        'family_status': citizen['family_status'] ?? '',
+        'citizen_status': citizen['citizen_status'] ?? '',
+        'no_hp': citizen['telephone'] ?? '',
+      };
     } catch (e) {
       if (e is ServerException) {
         rethrow;
@@ -227,6 +243,67 @@ class PendudukApiService {
       throw ServerException(
         message: 'Error fetching penduduk data: ${e.toString()}',
       );
+    }
+  }
+
+  /// Pencarian citizens ringan (server-side) untuk dropdown/autocomplete.
+  /// Menghindari tarik `/all-citizens` yang berat untuk 100k data.
+  Future<List<Map<String, dynamic>>> searchCitizensLite({
+    required String search,
+    int? villageId,
+    int page = 1,
+    int itemsPerPage = 50,
+  }) async {
+    try {
+      final qp = <String, String>{
+        'search': search,
+        'page': page.toString(),
+        'items_per_page': itemsPerPage.toString(),
+      };
+      if (villageId != null) {
+        qp['village_id'] = villageId.toString();
+      }
+
+      final uri = Uri.parse('${AppConstants.goBaseUrl}/api/v2/citizens-lite')
+          .replace(queryParameters: qp);
+
+      final response = await client.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-API-Key': AppConstants.apiKey,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw ServerException(
+            message: 'Gagal mengambil daftar penduduk: ${response.statusCode}');
+      }
+
+      final dynamic jsonResp = json.decode(response.body);
+      if (jsonResp is! Map<String, dynamic>) {
+        throw ServerException(message: 'Format response tidak valid');
+      }
+
+      final data = jsonResp['data'];
+      final citizens = (data is Map<String, dynamic>) ? data['citizens'] : null;
+      if (citizens is! List) {
+        return [];
+      }
+
+      return citizens.whereType<Map<String, dynamic>>().map((c) {
+        return {
+          'nik': c['nik']?.toString() ?? '',
+          'full_name': (c['full_name'] ?? '').toString(),
+          'kk': c['kk']?.toString() ?? '',
+          'village_id': c['village_id'] ?? 0,
+          'family_status': (c['family_status'] ?? '').toString(),
+        };
+      }).toList();
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(message: 'Gagal search penduduk: ${e.toString()}');
     }
   }
 
@@ -305,16 +382,28 @@ class PendudukApiService {
       }
     }
 
+    // Try persistent cache for cold start
+    final persisted = await _persistent.getJson<List<dynamic>>(cacheKey);
+    if (persisted != null) {
+      final members = persisted
+          .whereType<Map<String, dynamic>>()
+          .map((member) => FamilyMemberModel.fromJson(member))
+          .toList();
+      _cache[cacheKey] = members;
+      _cacheTimestamp[cacheKey] = DateTime.now();
+      return members;
+    }
+
     try {
       if (kk.isEmpty) {
         throw ValidationException(message: 'KK number cannot be empty');
       }
 
       final response = await client.get(
-        Uri.parse('${AppConstants.apiUrl}/citizens-family/$kk'),
+        Uri.parse('${AppConstants.goBaseUrl}/api/citizens-family/$kk'),
         headers: {
           'Content-Type': 'application/json',
-          'X-API-KEY': AppConstants.apiKey,
+          'X-API-Key': AppConstants.apiKey,
         },
       );
 
@@ -336,6 +425,9 @@ class PendudukApiService {
 
         _cache[cacheKey] = members;
         _cacheTimestamp[cacheKey] = DateTime.now();
+
+        // Persist raw list to device for fast next launch
+        await _persistent.setJson(cacheKey, familyData, ttl: _cacheDuration);
 
         return members;
       } else {
@@ -386,6 +478,18 @@ class PendudukApiService {
       }
     }
 
+    // Try persistent cache if not forced
+    if (!forceRefresh) {
+      final persisted =
+          await _persistent.getJson<Map<String, dynamic>>(cacheKey);
+      if (persisted != null) {
+        final documents = FamilyMemberDocuments.fromJson(persisted);
+        _cache[cacheKey] = documents;
+        _cacheTimestamp[cacheKey] = DateTime.now();
+        return documents;
+      }
+    }
+
     try {
       // Get auth token from storage
       final authLocalStorage = GetIt.instance<AuthLocalStorage>();
@@ -421,9 +525,11 @@ class PendudukApiService {
           final documents =
               FamilyMemberDocuments.fromJson(jsonResponse['documents']);
 
-          // Cache the result
+          // Cache and persist the result
           _cache[cacheKey] = documents;
           _cacheTimestamp[cacheKey] = DateTime.now();
+          await _persistent.setJson(cacheKey, jsonResponse['documents'],
+              ttl: _cacheDuration);
 
           return documents;
         }
@@ -505,6 +611,7 @@ class PendudukApiService {
           final cacheKey = 'documents_$nik';
           _cache.remove(cacheKey);
           _cacheTimestamp.remove(cacheKey);
+          await _persistent.invalidate(cacheKey);
 
           return DocumentModel.fromJson(jsonResponse['document']);
         }
@@ -561,12 +668,13 @@ class PendudukApiService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        // Remove from cache
+        // Remove from cache and persistent store
         final cacheKey = 'documents_$nik';
         if (_cache.containsKey(cacheKey)) {
           _cache.remove(cacheKey);
           _cacheTimestamp.remove(cacheKey);
         }
+        await _persistent.invalidate(cacheKey);
         return true;
       } else if (response.statusCode == 401) {
         throw ServerException(message: 'Unauthorized: Invalid token');
@@ -591,6 +699,43 @@ class PendudukApiService {
         }
       }
     });
+  }
+
+  // NOTE: _getAllCitizensCached() dan _fetchAndCacheAllCitizens() sengaja dihapus
+  // untuk mencegah regresi performa (download massal 100k+ data).
+
+  Future<bool> isHeadOfFamily(String nik) async {
+    try {
+      // Get the citizen's data to get their KK number
+      final citizenData = await getPendudukDetailByNik(nik);
+      final kk = citizenData['kk']?.toString() ?? '';
+
+      if (kk.isEmpty) {
+        throw ServerException(message: 'KK number not found for this NIK');
+      }
+
+      // Get all family members for this KK
+      final familyMembers = await getFamilyMembers(kk);
+
+      // Find the member with the given NIK and check if they are the head of family
+      final member = familyMembers.firstWhere(
+        (member) => member.nik == nik,
+        orElse: () =>
+            FamilyMemberModel(nik: '', fullName: '', familyStatus: ''),
+      );
+
+      // Check if this member's family status contains 'kepala keluarga'
+      final isHeadOfFamily =
+          member.familyStatus.toLowerCase().contains('kepala keluarga');
+      return isHeadOfFamily;
+    } catch (e) {
+      if (e is ServerException || e is ValidationException) {
+        rethrow;
+      }
+      throw ServerException(
+        message: 'Error checking head of family status: ${e.toString()}',
+      );
+    }
   }
 
   void clearCache() {

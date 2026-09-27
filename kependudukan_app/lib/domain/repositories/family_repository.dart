@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
-import 'package:flutter_kependudukan/core/errors/failures.dart';
-import 'package:flutter_kependudukan/data/models/document_model.dart';
-import 'package:flutter_kependudukan/data/models/family_member_model.dart';
+import 'package:ladimas/core/errors/failures.dart';
+import 'package:ladimas/data/models/document_model.dart';
+import 'package:ladimas/data/models/family_member_model.dart';
 
 abstract class FamilyRepository {
   Future<Either<Failure, List<FamilyMemberModel>>> getFamilyMembers(String kk,

@@ -1,4 +1,4 @@
-package com.example.flutter_kependudukan
+package com.ladimas.kependudukan
 
 import io.flutter.embedding.android.FlutterActivity
 

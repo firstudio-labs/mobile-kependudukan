@@ -53,17 +53,16 @@ class AppFormField extends StatelessWidget {
           labelText: label,
           labelStyle: const TextStyle(color: Color(0xFF666666), fontSize: 15),
           prefixIcon: Icon(icon, color: const Color(0xFF4A47DC), size: 22),
-          suffixIcon:
-              isPassword
-                  ? IconButton(
-                    icon: Icon(
-                      passwordVisible ? Icons.visibility : Icons.visibility_off,
-                      color: Colors.grey.shade600,
-                      size: 22,
-                    ),
-                    onPressed: onTogglePassword,
-                  )
-                  : suffixIcon,
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    passwordVisible ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.grey.shade600,
+                    size: 22,
+                  ),
+                  onPressed: onTogglePassword,
+                )
+              : suffixIcon,
           enabledBorder: OutlineInputBorder(
             borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
             borderRadius: BorderRadius.circular(12),

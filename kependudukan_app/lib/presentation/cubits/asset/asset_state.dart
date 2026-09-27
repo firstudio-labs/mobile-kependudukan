@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter_kependudukan/data/models/asset_model.dart';
+import 'package:ladimas/data/models/asset_model.dart';
 
 abstract class AssetState extends Equatable {
   const AssetState();

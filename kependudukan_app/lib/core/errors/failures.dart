@@ -12,6 +12,7 @@ abstract class Failure extends Equatable {
 }
 
 class ServerFailure extends Failure {
+  @override
   final String message;
 
   ServerFailure({required this.message}) : super([message]);
@@ -21,6 +22,7 @@ class ServerFailure extends Failure {
 }
 
 class CacheFailure extends Failure {
+  @override
   final String message;
 
   CacheFailure({required this.message}) : super([message]);
@@ -30,6 +32,7 @@ class CacheFailure extends Failure {
 }
 
 class AuthFailure extends Failure {
+  @override
   final String message;
 
   AuthFailure({required this.message}) : super([message]);
@@ -39,6 +42,7 @@ class AuthFailure extends Failure {
 }
 
 class DatabaseFailure extends Failure {
+  @override
   final String message;
 
   DatabaseFailure({required this.message}) : super([message]);
@@ -48,9 +52,20 @@ class DatabaseFailure extends Failure {
 }
 
 class AuthenticationFailure extends Failure {
+  @override
   final String message;
 
   AuthenticationFailure({required this.message}) : super([message]);
+
+  @override
+  List<Object> get props => [message];
+}
+
+class NetworkFailure extends Failure {
+  @override
+  final String message;
+
+  NetworkFailure({required this.message}) : super([message]);
 
   @override
   List<Object> get props => [message];

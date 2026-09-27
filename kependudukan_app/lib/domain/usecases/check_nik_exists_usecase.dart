@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter_kependudukan/core/errors/failures.dart';
-import 'package:flutter_kependudukan/domain/repositories/auth_repository.dart';
+import 'package:ladimas/core/errors/failures.dart';
+import 'package:ladimas/domain/repositories/auth_repository.dart';
 
 class CheckNikExistsUseCase {
   final AuthRepository repository;

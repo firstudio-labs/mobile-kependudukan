@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
 
 class MessageService {
   static void showErrorSnackBar(BuildContext context, String message) {
@@ -45,35 +45,33 @@ class MessageService {
   }) async {
     return showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(title ?? 'Error'),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      builder: (context) => AlertDialog(
+        title: Text(title ?? 'Error'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        backgroundColor: Colors.white,
+        titleTextStyle: const TextStyle(
+          color: Colors.red,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text(
+              'OK',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            backgroundColor: Colors.white,
-            titleTextStyle: const TextStyle(
-              color: Colors.red,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text(
-                  'OK',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
           ),
+        ],
+      ),
     );
   }
 
   static String getErrorMessage(String originalMessage) {
-   
     if (originalMessage.contains('SocketException') ||
         originalMessage.contains('Connection refused')) {
       return AppConstants.errorNetworkMessage;
@@ -83,7 +81,6 @@ class MessageService {
       return AppConstants.error404Message;
     }
 
-   
     return originalMessage;
   }
 }

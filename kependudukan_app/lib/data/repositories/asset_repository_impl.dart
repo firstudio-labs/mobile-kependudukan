@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
-import 'package:flutter_kependudukan/core/errors/exception.dart';
-import 'package:flutter_kependudukan/core/errors/failures.dart';
-import 'package:flutter_kependudukan/core/network/network_info.dart';
-import 'package:flutter_kependudukan/data/datasources/asset_api_service.dart';
-import 'package:flutter_kependudukan/data/models/asset_model.dart';
-import 'package:flutter_kependudukan/domain/repositories/asset_repository.dart';
+import 'package:ladimas/core/errors/exception.dart';
+import 'package:ladimas/core/errors/failures.dart';
+import 'package:ladimas/core/network/network_info.dart';
+import 'package:ladimas/data/datasources/asset_api_service.dart';
+import 'package:ladimas/data/models/asset_model.dart';
+import 'package:ladimas/domain/repositories/asset_repository.dart';
 
 class AssetRepositoryImpl implements AssetRepository {
   final AssetApiService apiService;

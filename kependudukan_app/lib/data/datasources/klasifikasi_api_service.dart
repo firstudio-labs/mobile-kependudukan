@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/errors/exception.dart';
-import 'package:flutter_kependudukan/data/models/klasifikasi_model.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/errors/exception.dart';
+import 'package:ladimas/data/models/klasifikasi_model.dart';
 
 class KlasifikasiApiService {
   final http.Client client;

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 
 class ProfileHeader extends StatelessWidget {
   final String name;
   final String nik;
 
   const ProfileHeader({Key? key, required this.name, required this.nik})
-    : super(key: key);
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {

@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/domain/repositories/asset_repository.dart';
-import 'package:flutter_kependudukan/presentation/cubits/asset/asset_state.dart';
+import 'package:ladimas/domain/repositories/asset_repository.dart';
+import 'package:ladimas/presentation/cubits/asset/asset_state.dart';
 
 class AssetCubit extends Cubit<AssetState> {
   final AssetRepository repository;
@@ -21,7 +21,7 @@ class AssetCubit extends Cubit<AssetState> {
   }
 
   Future<void> loadAssetDetail(int assetId) async {
-    emit(AssetLoading());
+    emit(const AssetLoading());
 
     final result = await repository.getAssetDetail(assetId);
 

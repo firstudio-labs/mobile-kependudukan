@@ -1,4 +1,4 @@
-import 'package:flutter_kependudukan/domain/entities/penduduk.dart';
+import 'package:ladimas/domain/entities/penduduk.dart';
 
 class PendudukModel extends Penduduk {
   final String? accessToken;
@@ -32,7 +32,7 @@ class PendudukModel extends Penduduk {
     return PendudukModel(
       nik: userData['nik'],
       noHp: userData['no_hp'] ?? '',
-      name: '',
+      name: userData['full_name'] ?? userData['name'] ?? '',
       accessToken: json['data']['access_token'],
       tokenType: json['data']['token_type'],
     );

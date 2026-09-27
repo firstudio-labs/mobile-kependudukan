@@ -1,23 +1,25 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/services/message_service.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
-import 'package:flutter_kependudukan/presentation/cubits/asset/asset_cubit.dart';
-import 'package:flutter_kependudukan/presentation/cubits/asset/asset_state.dart';
-import 'package:flutter_kependudukan/presentation/widgets/asset/asset_form_dropdown.dart';
-import 'package:flutter_kependudukan/presentation/widgets/asset/asset_form_image_picker.dart';
-import 'package:flutter_kependudukan/presentation/widgets/asset/asset_form_text_field.dart';
-import 'package:flutter_kependudukan/presentation/widgets/common/location_map_component.dart'
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/services/message_service.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/presentation/cubits/asset/asset_cubit.dart';
+import 'package:ladimas/presentation/cubits/asset/asset_state.dart';
+import 'package:ladimas/presentation/widgets/asset/asset_form_dropdown.dart';
+import 'package:ladimas/presentation/widgets/asset/asset_form_image_picker.dart';
+import 'package:ladimas/presentation/widgets/asset/asset_form_text_field.dart';
+import 'package:ladimas/presentation/widgets/common/location_map_component.dart'
     show LocationMapComponent, MapMode;
-import 'package:flutter_kependudukan/presentation/widgets/common/nik_dropdown_field.dart';
-import 'package:flutter_kependudukan/presentation/widgets/custom_button.dart';
+import 'package:ladimas/presentation/widgets/common/nik_dropdown_field.dart';
+import 'package:ladimas/presentation/widgets/custom_button.dart';
 import 'package:get_it/get_it.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_map/flutter_map.dart';
 
 class AssetFormPage extends StatefulWidget {
   final int? assetId;
@@ -41,6 +43,7 @@ class _AssetFormPageState extends State<AssetFormPage> {
   final _rwController = TextEditingController();
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
+  final _searchLocationController = TextEditingController();
 
   // Dropdown values
   String? _selectedProvinceId;
@@ -64,11 +67,14 @@ class _AssetFormPageState extends State<AssetFormPage> {
 
   // State
   bool _isLoading = false;
+  bool _isSearchingAddress = false;
+  bool _isSearching = false;
 
   // Map position
   LatLng _assetPosition = const LatLng(-6.200000, 106.816666);
   double _assetLatitude = -6.200000;
   double _assetLongitude = 106.816666;
+  final MapController _mapController = MapController();
 
   @override
   void initState() {
@@ -127,6 +133,10 @@ class _AssetFormPageState extends State<AssetFormPage> {
               _assetLongitude =
                   double.tryParse(coordinates[1]) ?? _assetLongitude;
               _assetPosition = LatLng(_assetLatitude, _assetLongitude);
+              // Autoload alamat dari koordinat jika alamat kosong
+              if (_alamatController.text.trim().isEmpty) {
+                _reverseGeocode(_assetPosition);
+              }
             }
           }
         });
@@ -181,7 +191,112 @@ class _AssetFormPageState extends State<AssetFormPage> {
     _rwController.dispose();
     _latController.dispose();
     _lngController.dispose();
+    _searchLocationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _reverseGeocode(LatLng pos) async {
+    setState(() => _isSearchingAddress = true);
+    try {
+      final resp = await http.get(
+        Uri.parse(
+            'https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.latitude}&lon=${pos.longitude}&zoom=18&addressdetails=1&accept-language=id'),
+        headers: {'User-Agent': 'LADIMAS App'},
+      );
+      if (!mounted) return;
+      if (resp.statusCode == 200) {
+        final Map<String, dynamic> body = json.decode(resp.body);
+        final display = body['display_name'] ?? '';
+        setState(() {
+          _alamatController.text = display.toString();
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isSearchingAddress = false);
+    }
+  }
+
+  Future<void> _searchLocation() async {
+    final query = _searchLocationController.text.trim();
+    if (query.isEmpty) {
+      MessageService.showErrorSnackBar(
+          context, 'Masukkan alamat yang ingin dicari');
+      return;
+    }
+    setState(() => _isSearching = true);
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1&countrycodes=id'),
+        headers: {'User-Agent': 'LADIMAS App'},
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> results = json.decode(response.body);
+        if (results.isNotEmpty) {
+          final result = results.first;
+          final lat = double.parse(result['lat']);
+          final lon = double.parse(result['lon']);
+          final pos = LatLng(lat, lon);
+          setState(() {
+            _assetPosition = pos;
+            _assetLatitude = lat;
+            _assetLongitude = lon;
+            _alamatController.text = result['display_name'] ?? query;
+          });
+          _mapController.move(pos, 15.0);
+          MessageService.showSuccessSnackBar(context, 'Lokasi ditemukan');
+        } else {
+          MessageService.showErrorSnackBar(
+              context, 'Lokasi tidak ditemukan. Coba kata kunci lain.');
+        }
+      } else {
+        throw Exception('Gagal mencari lokasi');
+      }
+    } catch (e) {
+      MessageService.showErrorSnackBar(
+          context, 'Gagal mencari lokasi: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
+  Future<void> _useCurrentLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        MessageService.showErrorSnackBar(
+            context, 'Layanan lokasi tidak aktif. Aktifkan GPS Anda.');
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied) {
+        MessageService.showErrorSnackBar(context, 'Izin lokasi ditolak.');
+        return;
+      }
+      if (permission == LocationPermission.deniedForever) {
+        MessageService.showErrorSnackBar(context,
+            'Izin lokasi ditolak permanen. Buka pengaturan untuk mengizinkan.');
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      final current = LatLng(pos.latitude, pos.longitude);
+      setState(() {
+        _assetPosition = current;
+        _assetLatitude = current.latitude;
+        _assetLongitude = current.longitude;
+      });
+      _mapController.move(current, 16.0);
+      _reverseGeocode(current);
+    } catch (e) {
+      MessageService.showErrorSnackBar(
+          context, 'Gagal mendapatkan lokasi GPS: ${e.toString()}');
+    }
   }
 
   void _submitForm() async {
@@ -487,19 +602,130 @@ class _AssetFormPageState extends State<AssetFormPage> {
               ),
             ),
             const SizedBox(height: 8),
-            LocationMapComponent(
-              initialPosition: _assetPosition,
-              mode: MapMode.select,
-              onLocationSelected: (position) {
-                setState(() {
-                  _assetPosition = position;
-                  _assetLatitude = position.latitude;
-                  _assetLongitude = position.longitude;
-                });
-              },
+            SizedBox(
               height: 250,
+              child: Stack(
+                children: [
+                  LocationMapComponent(
+                    initialPosition: _assetPosition,
+                    mode: MapMode.select,
+                    onLocationSelected: (position) {
+                      setState(() {
+                        _assetPosition = position;
+                        _assetLatitude = position.latitude;
+                        _assetLongitude = position.longitude;
+                      });
+                      _reverseGeocode(position);
+                    },
+                    height: 250,
+                    mapController: _mapController,
+                    showCurrentMarker: false,
+                  ),
+                  // Marker lingkaran biru di tengah peta
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: Center(
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 6,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                              border: Border.fromBorderSide(
+                                BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                            child: Icon(Icons.location_on,
+                                color: Colors.white, size: 24),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
+            // Search + GPS controls
+            Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Cari Lokasi',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchLocationController,
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Masukkan alamat (contoh: Jl. Sudirman, Jakarta)',
+                              prefixIcon: const Icon(Icons.search),
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                            ),
+                            onSubmitted: (_) => _searchLocation(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 120,
+                          child: ElevatedButton.icon(
+                            onPressed: _isSearching ? null : _searchLocation,
+                            icon: _isSearching
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.search),
+                            label: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(_isSearching ? 'Mencari...' : 'Cari'),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                              minimumSize: const Size(120, 48),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _useCurrentLocation,
+                      icon: const Icon(Icons.my_location),
+                      label: const Text('Gunakan GPS'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Row(
               children: [
                 Expanded(
@@ -517,6 +743,20 @@ class _AssetFormPageState extends State<AssetFormPage> {
                 ),
               ],
             ),
+            if (_isSearchingAddress) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: const [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 8),
+                  Text('Mengambil alamat dari koordinat ...'),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
             _buildSectionTitle('Foto Aset'),
             Row(
@@ -526,7 +766,7 @@ class _AssetFormPageState extends State<AssetFormPage> {
                     label: 'Foto Depan',
                     initialImageUrl: state is AssetDetailLoaded &&
                             state.asset.fotoDepan != null
-                        ? 'https://pelayanan.desaverse.id/storage/${state.asset.fotoDepan}'
+                        ? AppConstants.storageFileUrl(state.asset.fotoDepan)
                         : null,
                     onImageSelected: (image) {
                       setState(() {
@@ -541,7 +781,7 @@ class _AssetFormPageState extends State<AssetFormPage> {
                     label: 'Foto Samping',
                     initialImageUrl: state is AssetDetailLoaded &&
                             state.asset.fotoSamping != null
-                        ? 'https://pelayanan.desaverse.id/storage/${state.asset.fotoSamping}'
+                        ? AppConstants.storageFileUrl(state.asset.fotoSamping)
                         : null,
                     onImageSelected: (image) {
                       setState(() {
@@ -581,7 +821,7 @@ class _AssetFormPageState extends State<AssetFormPage> {
 
   Future<void> _loadProvinces() async {
     final response = await http.get(
-      Uri.parse('${AppConstants.apiUrl}/provinces'),
+      Uri.parse('${AppConstants.goBaseUrl}/api/provinces'),
       headers: {'X-API-Key': AppConstants.apiKey},
     );
 
@@ -601,7 +841,7 @@ class _AssetFormPageState extends State<AssetFormPage> {
   Future<void> _loadDistricts(String provinceCode) async {
     setState(() => _districts = []);
     final response = await http.get(
-      Uri.parse('${AppConstants.apiUrl}/districts/$provinceCode'),
+      Uri.parse('${AppConstants.goBaseUrl}/api/districts/$provinceCode'),
       headers: {'X-API-Key': AppConstants.apiKey},
     );
 
@@ -616,13 +856,13 @@ class _AssetFormPageState extends State<AssetFormPage> {
   Future<void> _loadSubdistricts(String districtCode) async {
     setState(() => _subdistricts = []);
     final response = await http.get(
-      Uri.parse('${AppConstants.apiUrl}/sub-districts/$districtCode'),
+      Uri.parse('${AppConstants.goBaseUrl}/api/sub-districts/$districtCode'),
       headers: {'X-API-Key': AppConstants.apiKey},
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      
+
       setState(() {
         _subdistricts = List<Map<String, dynamic>>.from(data['data']);
       });
@@ -632,13 +872,13 @@ class _AssetFormPageState extends State<AssetFormPage> {
   Future<void> _loadVillages(String subdistrictCode) async {
     setState(() => _villages = []);
     final response = await http.get(
-      Uri.parse('${AppConstants.apiUrl}/villages/$subdistrictCode'),
+      Uri.parse('${AppConstants.goBaseUrl}/api/villages/$subdistrictCode'),
       headers: {'X-API-Key': AppConstants.apiKey},
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-     
+
       setState(() {
         _villages = List<Map<String, dynamic>>.from(data['data']);
       });

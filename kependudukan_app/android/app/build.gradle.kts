@@ -26,8 +26,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion ?: 21
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = flutter.versionCode()
+        versionName = flutter.versionName()
     }
 
     buildTypes {
@@ -58,14 +58,13 @@ dependencies {
     // Add these dependencies to fix the R8 errors
     implementation("com.google.errorprone:error_prone_annotations:2.20.0")
     implementation("com.google.code.findbugs:jsr305:3.0.2")
+
+    // Play Core library - commented out if not needed
+    // implementation("com.google.android.play:core:1.10.3") // Use stable version
     
-    // Play Core library for dynamic features and split installation
-    implementation("com.google.android.play:core:1.10.3")
-    
-   // Ganti apache httpclient dengan okhttp3
+    // Ganti apache httpclient dengan okhttp3
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    
     // Joda Time library
     implementation("joda-time:joda-time:2.12.5")
 }

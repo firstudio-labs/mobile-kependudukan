@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter_kependudukan/data/models/document_model.dart';
+import 'package:ladimas/data/models/document_model.dart';
 
 abstract class DocumentState extends Equatable {
   const DocumentState();

@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/services/message_service.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/services/message_service.dart';
 import 'package:http/http.dart' as http;
 
 class NikDropdownField extends StatefulWidget {
@@ -24,18 +25,39 @@ class _NikDropdownFieldState extends State<NikDropdownField> {
   List<Map<String, dynamic>> _nikData = [];
   bool _isLoading = false;
   bool _showDropdown = false;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    _fetchNIKData();
   }
 
-  Future<void> _fetchNIKData() async {
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _searchNIKData(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _nikData = [];
+        _isLoading = false;
+      });
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
+      final uri = Uri.parse('${AppConstants.goBaseUrl}/api/v2/citizens-lite')
+          .replace(queryParameters: {
+        'search': query,
+        'page': '1',
+        'items_per_page': '5',
+      });
+
       final response = await http.get(
-        Uri.parse('${AppConstants.apiUrl}/all-citizens'),
+        uri,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -44,9 +66,16 @@ class _NikDropdownFieldState extends State<NikDropdownField> {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final dynamic data = json.decode(response.body);
+        final citizens = (data is Map<String, dynamic>)
+            ? (data['data'] is Map<String, dynamic>
+                ? data['data']['citizens']
+                : null)
+            : null;
         setState(() {
-          _nikData = List<Map<String, dynamic>>.from(data['data']);
+          _nikData = (citizens is List)
+              ? citizens.whereType<Map<String, dynamic>>().toList()
+              : <Map<String, dynamic>>[];
         });
       } else {
         MessageService.showErrorSnackBar(context, 'Gagal memuat data NIK');
@@ -99,6 +128,11 @@ class _NikDropdownFieldState extends State<NikDropdownField> {
           onChanged: (value) {
             setState(() {
               _showDropdown = value.isNotEmpty;
+            });
+
+            _debounce?.cancel();
+            _debounce = Timer(const Duration(milliseconds: 300), () {
+              _searchNIKData(value);
             });
           },
         ),

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 
 class InfoSection extends StatelessWidget {
   final String title;
   final List<Map<String, String>> items;
 
   const InfoSection({Key? key, required this.title, required this.items})
-    : super(key: key);
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -45,10 +45,9 @@ class InfoSection extends StatelessWidget {
         ],
       ),
       child: Column(
-        children:
-            items
-                .map((item) => _buildInfoItem(item['label']!, item['value']!))
-                .toList(),
+        children: items
+            .map((item) => _buildInfoItem(item['label']!, item['value']!))
+            .toList(),
       ),
     );
   }

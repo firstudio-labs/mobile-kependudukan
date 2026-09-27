@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
-import 'package:flutter_kependudukan/data/models/asset_model.dart';
-import 'package:flutter_kependudukan/presentation/cubits/asset/asset_cubit.dart';
-import 'package:flutter_kependudukan/presentation/cubits/asset/asset_state.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/data/models/asset_model.dart';
+import 'package:ladimas/presentation/cubits/asset/asset_cubit.dart';
+import 'package:ladimas/presentation/cubits/asset/asset_state.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -204,7 +205,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
-                            'https://pelayanan.desaverse.id/storage/${asset.fotoDepan}',
+                            AppConstants.storageFileUrl(asset.fotoDepan),
                             height: 180,
                             width: double.infinity,
                             fit: BoxFit.cover,
@@ -264,7 +265,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
-                            'https://pelayanan.desaverse.id/storage/${asset.fotoSamping}',
+                            AppConstants.storageFileUrl(asset.fotoSamping),
                             height: 180,
                             width: double.infinity,
                             fit: BoxFit.cover,

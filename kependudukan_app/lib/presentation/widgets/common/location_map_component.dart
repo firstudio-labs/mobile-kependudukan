@@ -80,6 +80,7 @@ class _LocationMapComponentState extends State<LocationMapComponent> {
           TileLayer(
             urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             subdomains: const ['a', 'b', 'c'],
+            userAgentPackageName: 'com.firstudio.ladimas',
           ),
           if (widget.showCurrentMarker)
             MarkerLayer(

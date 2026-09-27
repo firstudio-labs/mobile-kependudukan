@@ -3,7 +3,7 @@ import 'package:path/path.dart';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
 
 class DbHelper {
   static final DbHelper _instance = DbHelper._internal();
@@ -40,7 +40,6 @@ class DbHelper {
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < newVersion) {
-     
       await _ensureTableExists(db, 'penduduk');
     }
   }
@@ -59,7 +58,6 @@ class DbHelper {
   }
 
   Future<void> _ensureTableExists(Database db, String tableName) async {
-
     var tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='$tableName';",
     );
@@ -71,7 +69,6 @@ class DbHelper {
     }
   }
 
-
   Future<void> resetDatabase() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, AppConstants.dbName);
@@ -79,10 +76,9 @@ class DbHelper {
     _database = null;
   }
 
-
   Future<int> insertPenduduk(Map<String, dynamic> data) async {
     Database db = await database;
-    
+
     await _ensureTableExists(db, 'penduduk');
     return await db.insert(
       'penduduk',
@@ -91,13 +87,12 @@ class DbHelper {
     );
   }
 
- 
   Future<Map<String, dynamic>?> getPendudukByCredentials(
     String nik,
     String password,
   ) async {
     Database db = await database;
-    
+
     await _ensureTableExists(db, 'penduduk');
     List<Map<String, dynamic>> results = await db.query(
       'penduduk',
@@ -109,10 +104,9 @@ class DbHelper {
     return results.isNotEmpty ? results.first : null;
   }
 
- 
   Future<bool> checkNikExists(String nik) async {
     Database db = await database;
-    
+
     await _ensureTableExists(db, 'penduduk');
     List<Map<String, dynamic>> results = await db.query(
       'penduduk',

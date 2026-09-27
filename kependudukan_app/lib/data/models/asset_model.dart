@@ -52,8 +52,6 @@ class AssetModel extends Equatable {
   });
 
   factory AssetModel.fromJson(Map<String, dynamic> json) {
-  
-
     return AssetModel(
       id: json['id'],
       namaAset: json['nama_aset'] ?? '',

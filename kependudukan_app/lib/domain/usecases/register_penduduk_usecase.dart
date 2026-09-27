@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter_kependudukan/core/errors/failures.dart';
-import 'package:flutter_kependudukan/domain/repositories/auth_repository.dart';
+import 'package:ladimas/core/errors/failures.dart';
+import 'package:ladimas/domain/repositories/auth_repository.dart';
 
 class RegisterPendudukUseCase {
   final AuthRepository repository;
@@ -9,10 +9,24 @@ class RegisterPendudukUseCase {
   RegisterPendudukUseCase(this.repository);
 
   Future<Either<Failure, bool>> call(RegisterPendudukParams params) async {
-    return await repository.registerPenduduk(
-      params.nik,
-      params.password,
-      params.noHp,
+    // First check if the NIK is the head of the family
+    final headOfFamilyResult = await repository.isHeadOfFamily(params.nik);
+
+    return headOfFamilyResult.fold(
+      (failure) => Left(failure),
+      (isHead) {
+        if (!isHead) {
+          return Left(AuthFailure(
+              message:
+                  'Hanya Kepala Keluarga yang dapat melakukan pendaftaran'));
+        }
+        // If the user is head of family, proceed with registration
+        return repository.registerPenduduk(
+          params.nik,
+          params.password,
+          params.noHp,
+        );
+      },
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
-import 'package:flutter_kependudukan/presentation/widgets/common/location_map_component.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/presentation/widgets/common/location_map_component.dart';
 
 class AssetLocationSelector extends StatefulWidget {
   final Function(LatLng) onLocationSelected;

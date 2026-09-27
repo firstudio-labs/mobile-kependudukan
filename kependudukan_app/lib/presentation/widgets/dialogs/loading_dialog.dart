@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 
 class LoadingDialog extends StatelessWidget {
   final String message;

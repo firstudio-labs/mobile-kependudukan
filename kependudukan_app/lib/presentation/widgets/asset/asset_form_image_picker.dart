@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AssetFormImagePicker extends StatefulWidget {
@@ -112,10 +112,10 @@ class _AssetFormImagePickerState extends State<AssetFormImagePicker> {
   }
 
   Widget _buildPlaceholder() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(
             Icons.add_photo_alternate_outlined,
             size: 40,

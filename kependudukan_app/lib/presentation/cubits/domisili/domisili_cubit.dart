@@ -1,19 +1,25 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter_kependudukan/data/models/family_member_model.dart';
-import 'package:flutter_kependudukan/domain/repositories/family_repository.dart';
+import 'package:ladimas/data/models/family_member_model.dart';
+import 'package:ladimas/domain/repositories/family_repository.dart';
 import 'package:latlong2/latlong.dart';
+
+import 'package:ladimas/domain/repositories/auth_repository.dart';
 
 part 'domisili_state.dart';
 
 class DomisiliCubit extends Cubit<DomisiliState> {
   final FamilyRepository repository;
+  final AuthRepository authRepository;
 
   final Map<String, FamilyMemberModel> _memberCache = {};
   final Map<String, DateTime> _memberCacheTimestamp = {};
   final Duration _cacheDuration = const Duration(minutes: 15);
 
-  DomisiliCubit({required this.repository}) : super(DomisiliInitial());
+  DomisiliCubit({
+    required this.repository,
+    required this.authRepository,
+  }) : super(DomisiliInitial());
 
   Future<void> loadFamilyMember(String kk, String nik,
       {bool forceRefresh = false}) async {
@@ -29,22 +35,73 @@ class DomisiliCubit extends Cubit<DomisiliState> {
 
     emit(DomisiliLoading());
 
-    final result =
+    // 1. Fetch family members from Go API (official data)
+    final familyResult =
         await repository.getFamilyMembers(kk, forceRefresh: forceRefresh);
 
-    result.fold((failure) => emit(DomisiliError(message: failure.message)),
-        (members) {
-      try {
-        final member = members.firstWhere((m) => m.nik == nik);
+    // 2. Fetch user profile from Laravel API (domicile data)
+    final profileResult = await authRepository.getUserProfile();
 
-        _memberCache[nik] = member;
-        _memberCacheTimestamp[nik] = DateTime.now();
+    familyResult.fold(
+      (failure) => emit(DomisiliError(message: failure.message)),
+      (members) {
+        try {
+          var member = members.firstWhere((m) => m.nik == nik);
 
-        emit(DomisiliLoaded(member: member));
-      } catch (e) {
-        emit(const DomisiliError(message: 'Member not found'));
-      }
-    });
+          // Create a mutable JSON map for deep merging
+          final Map<String, dynamic> mergedJson = member.toJson();
+
+          // Merge with domicile data from profile if available
+          profileResult.fold(
+            (_) => null, // Ignore profile error, use official data
+            (profile) {
+              // AuthRepository returns the 'data' part of the response already, 
+              // but we'll check for both just in case the structure varies
+              final user = (profile.containsKey('data') && profile['data'] is Map) 
+                ? profile['data'] as Map<String, dynamic>
+                : profile;
+              
+              if (user != null && user.isNotEmpty) {
+                final String userNikStr = user['nik']?.toString() ?? '';
+                // Check if target member is the user themselves
+                if (userNikStr == nik) {
+                  mergedJson.addAll(user);
+                } else {
+                  // Check in family_members from profile
+                  final familyMembers = user['family_members'] as List?;
+                  if (familyMembers != null) {
+                    final profileMember = familyMembers.firstWhere(
+                      (m) => m['nik']?.toString() == nik,
+                      orElse: () => null,
+                    );
+
+                    if (profileMember != null) {
+                      mergedJson.addAll(profileMember);
+                    }
+                  }
+                }
+              }
+            },
+          );
+
+          // Re-parse the merged data to apply correctly prioritized selection
+          member = FamilyMemberModel.fromJson(mergedJson);
+
+          _memberCache[nik] = member;
+          _memberCacheTimestamp[nik] = DateTime.now();
+
+          emit(DomisiliLoaded(member: member));
+        } catch (e) {
+          emit(const DomisiliError(message: 'Member not found'));
+        }
+      },
+    );
+  }
+
+  static int? _toInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    return int.tryParse(v.toString());
   }
 
   FamilyMemberModel? _getCachedMember(String nik) {

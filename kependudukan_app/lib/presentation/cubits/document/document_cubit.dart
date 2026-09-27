@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/domain/repositories/family_repository.dart';
-import 'package:flutter_kependudukan/presentation/cubits/document/document_state.dart';
+import 'package:ladimas/domain/repositories/family_repository.dart';
+import 'package:ladimas/presentation/cubits/document/document_state.dart';
 
 class DocumentCubit extends Cubit<DocumentState> {
   final FamilyRepository repository;

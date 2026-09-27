@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/presentation/pages/auth/login_page.dart';
-import 'package:flutter_kependudukan/presentation/pages/auth/register_page.dart';
-import 'package:flutter_kependudukan/presentation/widgets/custom_button.dart';
+import 'package:ladimas/presentation/pages/auth/login_page.dart';
+import 'package:ladimas/presentation/pages/auth/register_page.dart';
+import 'package:ladimas/presentation/widgets/custom_button.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({Key? key}) : super(key: key);
@@ -16,10 +16,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   final List<Map<String, dynamic>> _onboardingData = [
     {
-      'title': 'Selamat Datang di Aplikasi Kependudukan',
+      'title': 'Selamat Datang di LADIMAS',
       'description':
           'Kelola data kependudukan Anda secara mudah dan cepat melalui aplikasi ini',
-      'image': Icons.people,
+      'image': 'assets/app_icon_padded.png',
       'color': const Color(0xFF4A47DC),
     },
     {
@@ -127,18 +127,19 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         // Navigation button(s)
                         _currentPage < _onboardingData.length - 1
                             ? SizedBox(
-                              width: 120,
-                              child: CustomButton(
-                                height: 50,
-                                text: 'Lanjut',
-                                onPressed: () {
-                                  _pageController.nextPage(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                  );
-                                },
-                              ),
-                            )
+                                width: 120,
+                                child: CustomButton(
+                                  height: 50,
+                                  text: 'Lanjut',
+                                  onPressed: () {
+                                    _pageController.nextPage(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  },
+                                ),
+                              )
                             : const SizedBox.shrink(),
                       ],
                     ),
@@ -214,24 +215,35 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(60),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        _onboardingData[index]['image'],
-                        size: 60,
-                        color: _onboardingData[index]['color'],
+                    ClipOval(
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(60),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: _onboardingData[index]['image'] is String
+                            ? Center(
+                                child: Image.asset(
+                                  _onboardingData[index]['image'],
+                                  width: 90,
+                                  height: 90,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Icon(
+                                _onboardingData[index]['image'],
+                                size: 60,
+                                color: _onboardingData[index]['color'],
+                              ),
                       ),
                     ),
                   ],
@@ -250,10 +262,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
       height: 8,
       width: _currentPage == index ? 24 : 8,
       decoration: BoxDecoration(
-        color:
-            _currentPage == index
-                ? const Color(0xFF4A47DC)
-                : Colors.grey.shade300,
+        color: _currentPage == index
+            ? const Color(0xFF4A47DC)
+            : Colors.grey.shade300,
         borderRadius: BorderRadius.circular(4),
       ),
     );

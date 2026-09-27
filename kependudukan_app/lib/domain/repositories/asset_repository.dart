@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:dartz/dartz.dart';
-import 'package:flutter_kependudukan/core/errors/failures.dart';
-import 'package:flutter_kependudukan/data/models/asset_model.dart';
+import 'package:ladimas/core/errors/failures.dart';
+import 'package:ladimas/data/models/asset_model.dart';
 
 abstract class AssetRepository {
   Future<Either<Failure, List<AssetModel>>> getAssets();

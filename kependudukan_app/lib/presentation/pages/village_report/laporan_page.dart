@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
-import 'package:flutter_kependudukan/data/datasources/laporan_api_service.dart';
-import 'package:flutter_kependudukan/data/models/laporan_model.dart';
-import 'package:flutter_kependudukan/presentation/pages/village_report/laporan_form_page.dart';
-import 'package:flutter_kependudukan/presentation/widgets/loading_indicator.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/data/datasources/laporan_api_service.dart';
+import 'package:ladimas/data/models/laporan_model.dart';
+import 'package:ladimas/presentation/pages/village_report/laporan_form_page.dart';
+import 'package:ladimas/presentation/pages/village_report/laporan_detail_page.dart';
+import 'package:ladimas/presentation/widgets/loading_indicator.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 
@@ -90,109 +91,157 @@ class _VillageReportPageState extends State<VillageReportPage> {
                           final report = _reports[index];
                           return Card(
                             margin: const EdgeInsets.only(bottom: 16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          report.judulLaporan,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _getStatusColor(report.status),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          report.status,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        LaporanDetailPage(report: report),
                                   ),
-                                  const SizedBox(height: 8),
-                                  if (report.gambar.isNotEmpty)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        _buildImageUrl(report.gambar),
-                                        height: 200,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                const SizedBox(
-                                          height: 200,
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.error_outline,
-                                              color: Colors.red,
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            report.judulLaporan,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                _getStatusColor(report.status),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            report.status,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (report.gambar.isNotEmpty)
+                                      GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => LaporanDetailPage(
+                                                  report: report),
+                                            ),
+                                          );
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: Image.network(
+                                            _buildImageUrl(report.gambar),
+                                            height: 200,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    const SizedBox(
+                                              height: 200,
+                                              child: Center(
+                                                child: Icon(
+                                                  Icons.error_outline,
+                                                  color: Colors.red,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      report.deskripsiLaporan,
+                                      style: const TextStyle(fontSize: 14),
                                     ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    report.deskripsiLaporan,
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on,
-                                        size: 16,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        report.tagLokasi,
-                                        style: const TextStyle(
-                                          fontSize: 12,
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on,
+                                          size: 16,
                                           color: Colors.grey,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.access_time,
-                                        size: 16,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        DateFormat('dd MMM yyyy HH:mm')
-                                            .format(report.createdAt),
-                                        style: const TextStyle(
-                                          fontSize: 12,
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                _buildLocationText(report),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                report.tagLokasi
+                                                        .trim()
+                                                        .isNotEmpty
+                                                    ? report.tagLokasi.trim()
+                                                    : '-',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.access_time,
+                                          size: 16,
                                           color: Colors.grey,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          DateFormat('dd MMM yyyy HH:mm')
+                                              .format(report.createdAt),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -236,20 +285,36 @@ class _VillageReportPageState extends State<VillageReportPage> {
 
   // Helper method to build the complete image URL
   String _buildImageUrl(String imagePath) {
-    // Use AppConstants instead of hardcoded URL
-    final String baseUrl = AppConstants.storageUrl;
-
     // If the path already starts with http/https, return as is
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
 
-    // Remove leading slash if present
+    // Determine base URL (fallback jika .env tidak di-set)
+    String baseUrl = AppConstants.storageUrl;
+    if (baseUrl.isEmpty) {
+      baseUrl = 'https://pelayanan.desaverse.id/storage/';
+    }
+
+    // Normalisasi baseUrl agar berakhiran '/'
+    if (!baseUrl.endsWith('/')) {
+      baseUrl = '$baseUrl/';
+    }
+
+    // Remove leading slash if present pada path
     String path = imagePath;
     if (path.startsWith('/')) {
       path = path.substring(1);
     }
 
     return baseUrl + path;
+  }
+
+  String _buildLocationText(VillageReportModel report) {
+    // Tampilkan alamat jika tersedia; jika tidak, fallback koordinat
+    if (report.lokasi.trim().isNotEmpty) {
+      return report.lokasi.trim();
+    }
+    return report.tagLokasi.trim().isNotEmpty ? report.tagLokasi.trim() : '-';
   }
 }

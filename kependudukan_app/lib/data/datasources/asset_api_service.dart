@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/errors/exception.dart';
-import 'package:flutter_kependudukan/data/datasources/auth_local_storage.dart';
-import 'package:flutter_kependudukan/data/models/asset_model.dart';
-import 'package:flutter_kependudukan/core/services/wilayah_service.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/errors/exception.dart';
+import 'package:ladimas/data/datasources/auth_local_storage.dart';
+import 'package:ladimas/data/models/asset_model.dart';
+import 'package:ladimas/core/services/wilayah_service.dart';
 
 class AssetApiService {
   final http.Client client;

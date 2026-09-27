@@ -46,17 +46,16 @@ class ProfileCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
-                child:
-                    avatarUrl != null && avatarUrl!.isNotEmpty
-                        ? ClipRRect(
-                          borderRadius: BorderRadius.circular(30),
-                          child: Image.network(avatarUrl!, fit: BoxFit.cover),
-                        )
-                        : const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 32,
-                        ),
+                child: avatarUrl != null && avatarUrl!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: Image.network(avatarUrl!, fit: BoxFit.cover),
+                      )
+                    : const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 32,
+                      ),
               ),
               const SizedBox(width: 16),
               Expanded(

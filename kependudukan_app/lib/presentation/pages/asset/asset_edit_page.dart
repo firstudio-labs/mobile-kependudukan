@@ -1,17 +1,17 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_kependudukan/core/constants/app_constants.dart';
-import 'package:flutter_kependudukan/core/services/message_service.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
-import 'package:flutter_kependudukan/presentation/cubits/asset/asset_cubit.dart';
-import 'package:flutter_kependudukan/presentation/cubits/asset/asset_state.dart';
-import 'package:flutter_kependudukan/presentation/widgets/asset/asset_form_dropdown.dart';
-import 'package:flutter_kependudukan/presentation/widgets/asset/asset_form_image_picker.dart';
-import 'package:flutter_kependudukan/presentation/widgets/asset/asset_form_text_field.dart';
-import 'package:flutter_kependudukan/presentation/widgets/common/location_map_component.dart';
-import 'package:flutter_kependudukan/presentation/widgets/custom_button.dart';
-import 'package:flutter_kependudukan/presentation/widgets/asset/nik_dropdown_field.dart';
+import 'package:ladimas/core/constants/app_constants.dart';
+import 'package:ladimas/core/services/message_service.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/presentation/cubits/asset/asset_cubit.dart';
+import 'package:ladimas/presentation/cubits/asset/asset_state.dart';
+import 'package:ladimas/presentation/widgets/asset/asset_form_dropdown.dart';
+import 'package:ladimas/presentation/widgets/asset/asset_form_image_picker.dart';
+import 'package:ladimas/presentation/widgets/asset/asset_form_text_field.dart';
+import 'package:ladimas/presentation/widgets/common/location_map_component.dart';
+import 'package:ladimas/presentation/widgets/custom_button.dart';
+import 'package:ladimas/presentation/widgets/asset/nik_dropdown_field.dart';
 import 'package:get_it/get_it.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
@@ -65,7 +65,7 @@ class _AssetEditPageState extends State<AssetEditPage> {
   bool _isLoading = false;
 
   // Map position
-  LatLng _assetPosition = LatLng(-6.200000, 106.816666);
+  LatLng _assetPosition = const LatLng(-6.200000, 106.816666);
   double _assetLatitude = -6.200000;
   double _assetLongitude = 106.816666;
 
@@ -537,7 +537,7 @@ class _AssetEditPageState extends State<AssetEditPage> {
 
   Future<void> _loadProvinces() async {
     final response = await http.get(
-      Uri.parse('${AppConstants.apiUrl}/provinces'),
+      Uri.parse('${AppConstants.goBaseUrl}/api/provinces'),
       headers: {'X-API-Key': AppConstants.apiKey},
     );
 
@@ -554,7 +554,7 @@ class _AssetEditPageState extends State<AssetEditPage> {
   Future<void> _loadDistricts(String provinceCode) async {
     setState(() => _districts = []);
     final response = await http.get(
-      Uri.parse('${AppConstants.apiUrl}/districts/$provinceCode'),
+      Uri.parse('${AppConstants.goBaseUrl}/api/districts/$provinceCode'),
       headers: {'X-API-Key': AppConstants.apiKey},
     );
 
@@ -569,7 +569,7 @@ class _AssetEditPageState extends State<AssetEditPage> {
   Future<void> _loadSubdistricts(String districtCode) async {
     setState(() => _subdistricts = []);
     final response = await http.get(
-      Uri.parse('${AppConstants.apiUrl}/sub-districts/$districtCode'),
+      Uri.parse('${AppConstants.goBaseUrl}/api/sub-districts/$districtCode'),
       headers: {'X-API-Key': AppConstants.apiKey},
     );
 
@@ -584,7 +584,7 @@ class _AssetEditPageState extends State<AssetEditPage> {
   Future<void> _loadVillages(String subdistrictCode) async {
     setState(() => _villages = []);
     final response = await http.get(
-      Uri.parse('${AppConstants.apiUrl}/villages/$subdistrictCode'),
+      Uri.parse('${AppConstants.goBaseUrl}/api/villages/$subdistrictCode'),
       headers: {'X-API-Key': AppConstants.apiKey},
     );
 

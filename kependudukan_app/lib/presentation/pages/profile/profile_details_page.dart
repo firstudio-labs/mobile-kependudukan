@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_kependudukan/core/theme/app_theme.dart';
-import 'package:flutter_kependudukan/domain/repositories/auth_repository.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/domain/repositories/auth_repository.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_kependudukan/core/services/message_service.dart';
-import 'package:flutter_kependudukan/presentation/widgets/profile/profile_header.dart';
-import 'package:flutter_kependudukan/presentation/widgets/profile/info_section.dart';
+import 'package:ladimas/core/services/message_service.dart';
+import 'package:ladimas/presentation/widgets/profile/profile_header.dart';
+import 'package:ladimas/presentation/widgets/profile/update_phone_password_form.dart';
+import 'package:ladimas/domain/entities/penduduk.dart';
 
 class ProfileDetailsPage extends StatefulWidget {
-  const ProfileDetailsPage({Key? key, required this.nik}) : super(key: key);
+  const ProfileDetailsPage({
+    Key? key,
+    required this.nik,
+    this.penduduk,
+    this.biodata,
+  }) : super(key: key);
   final String nik;
+  final Penduduk? penduduk;
+  final Map<String, dynamic>? biodata;
 
   @override
   State<ProfileDetailsPage> createState() => _ProfileDetailsPageState();
@@ -23,6 +31,10 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   @override
   void initState() {
     super.initState();
+    // Jika ada data biodata atau penduduk, gunakan sebagai fallback sementara
+    if (widget.biodata != null || widget.penduduk != null) {
+      _profileData = _normalizeProfileData({});
+    }
     _loadProfileData();
   }
 
@@ -34,6 +46,32 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
 
     try {
       final repository = GetIt.instance<AuthRepository>();
+
+      // Coba ambil data dari user profile dengan token authentication terlebih dahulu
+      final profileResult = await repository.getUserProfile();
+
+      profileResult.fold(
+        (failure) {
+          // Jika gagal, fallback ke getPendudukDetail
+          _loadPendudukDetail(repository);
+        },
+        (data) {
+          setState(() {
+            _profileData = _normalizeProfileData(data);
+            _isLoading = false;
+          });
+        },
+      );
+    } catch (e) {
+      setState(() {
+        _errorMessage = MessageService.getErrorMessage(e.toString());
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadPendudukDetail(AuthRepository repository) async {
+    try {
       final result = await repository.getPendudukDetail(widget.nik);
 
       result.fold(
@@ -45,7 +83,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         },
         (data) {
           setState(() {
-            _profileData = data;
+            _profileData = _normalizeProfileData(data);
             _isLoading = false;
           });
         },
@@ -56,6 +94,80 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
         _isLoading = false;
       });
     }
+  }
+
+  Map<String, dynamic> _normalizeProfileData(Map<String, dynamic> data) {
+    // Normalize data structure untuk kompatibilitas dengan kedua API
+    return {
+      'nik': data['nik']?.toString() ??
+          data['id']?.toString() ??
+          widget.biodata?['nik']?.toString() ??
+          widget.penduduk?.nik ??
+          '-',
+      'kk': data['kk']?.toString() ??
+          data['no_kk']?.toString() ??
+          widget.biodata?['kk']?.toString() ??
+          '-',
+      'full_name': data['full_name']?.toString() ??
+          data['name']?.toString() ??
+          data['nama_lengkap']?.toString() ??
+          widget.biodata?['full_name']?.toString() ??
+          widget.penduduk?.name ??
+          '-',
+      'gender': data['gender']?.toString() ??
+          data['jenis_kelamin']?.toString() ??
+          widget.biodata?['gender']?.toString() ??
+          '-',
+      'age': data['age'] ?? data['umur'] ?? widget.biodata?['age'] ?? 0,
+      'birth_place': data['birth_place']?.toString() ??
+          data['tempat_lahir']?.toString() ??
+          widget.biodata?['birth_place']?.toString() ??
+          '-',
+      'birth_date': data['birth_date']?.toString() ??
+          data['tanggal_lahir']?.toString() ??
+          widget.biodata?['birth_date']?.toString() ??
+          '-',
+      'address': data['address']?.toString() ??
+          data['alamat']?.toString() ??
+          widget.biodata?['address']?.toString() ??
+          '-',
+      'rt': data['rt']?.toString() ?? widget.biodata?['rt']?.toString() ?? '-',
+      'rw': data['rw']?.toString() ?? widget.biodata?['rw']?.toString() ?? '-',
+      'province_name': data['province_name']?.toString() ??
+          data['provinsi']?.toString() ??
+          '-',
+      'district_name': data['district_name']?.toString() ??
+          data['kabupaten']?.toString() ??
+          '-',
+      'sub_district_name': data['sub_district_name']?.toString() ??
+          data['kecamatan']?.toString() ??
+          '-',
+      'village_name':
+          data['village_name']?.toString() ?? data['desa']?.toString() ?? '-',
+      'no_hp': data['no_hp']?.toString() ??
+          data['phone']?.toString() ??
+          widget.biodata?['no_hp']?.toString() ??
+          widget.penduduk?.noHp ??
+          '-',
+      // Tambahkan field lain yang mungkin ada
+      'blood_type': data['blood_type']?.toString() ??
+          data['golongan_darah']?.toString() ??
+          '-',
+      'education_status': data['education_status']?.toString() ??
+          data['pendidikan']?.toString() ??
+          '-',
+      'religion':
+          data['religion']?.toString() ?? data['agama']?.toString() ?? '-',
+      'marital_status': data['marital_status']?.toString() ??
+          data['status_perkawinan']?.toString() ??
+          '-',
+      'family_status': data['family_status']?.toString() ??
+          data['status_keluarga']?.toString() ??
+          '-',
+      'citizen_status': data['citizen_status']?.toString() ??
+          data['status_kewarganegaraan']?.toString() ??
+          '-',
+    };
   }
 
   String _formatDate(String? dateString) {
@@ -76,7 +188,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text(
-          'Data Diri',
+          'Data Profil',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppTheme.primaryColor,
@@ -134,64 +246,13 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
           ),
           const SizedBox(height: 24),
 
-          InfoSection(
-            title: 'Informasi Pribadi',
-            items: [
-              {
-                'label': 'NIK',
-                'value': _profileData?['nik']?.toString() ?? '-',
-              },
-              {
-                'label': 'No. KK',
-                'value': _profileData?['kk']?.toString() ?? '-',
-              },
-              {
-                'label': 'Jenis Kelamin',
-                'value': _profileData?['gender'] ?? '-',
-              },
-              {
-                'label': 'Umur',
-                'value': '${_profileData?['age']?.toString() ?? '-'} Tahun',
-              },
-              {
-                'label': 'Tempat Lahir',
-                'value': _profileData?['birth_place'] ?? '-',
-              },
-              {
-                'label': 'Tanggal Lahir',
-                'value': _formatDate(_profileData?['birth_date']),
-              },
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          InfoSection(
-            title: 'Informasi Alamat',
-            items: [
-              {'label': 'Alamat', 'value': _profileData?['address'] ?? '-'},
-              {
-                'label': 'RT/RW',
-                'value':
-                    '${_profileData?['rt'] ?? '-'}/${_profileData?['rw'] ?? '-'}',
-              },
-              {
-                'label': 'Provinsi',
-                'value': _profileData?['province_name'] ?? '-',
-              },
-              {
-                'label': 'Kabupaten/Kota',
-                'value': _profileData?['district_name'] ?? '-',
-              },
-              {
-                'label': 'Kecamatan',
-                'value': _profileData?['sub_district_name'] ?? '-',
-              },
-              {
-                'label': 'Desa/Kelurahan',
-                'value': _profileData?['village_name'] ?? '-',
-              },
-            ],
+          // Update Phone & Password Form
+          UpdatePhonePasswordForm(
+            currentPhone: _profileData?['no_hp']?.toString() ?? '-',
+            onSuccess: () {
+              // Reload profile data after successful update
+              _loadProfileData();
+            },
           ),
         ],
       ),
