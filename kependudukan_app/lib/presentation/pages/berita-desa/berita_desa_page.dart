@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ladimas/core/error/exceptions.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:ladimas/core/services/message_service.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'package:ladimas/data/datasources/berita_desa_api_service.dart';
 import 'package:ladimas/data/models/berita_desa_model.dart';
@@ -20,6 +21,7 @@ import 'package:ladimas/presentation/pages/berita-desa/berita_desa_detail_page.d
 import 'package:ladimas/presentation/pages/berita-desa/berita_desa_form_page.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:ladimas/presentation/pages/pengumuman/image_viewer_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 
 class BeritaDesaPage extends StatefulWidget {
   final Penduduk? penduduk;
@@ -164,13 +166,13 @@ class _BeritaDesaPageState extends State<BeritaDesaPage> {
         title: const Text(
           'Pengaturan',
           style:
-              TextStyle(color: Color(0xFF4A47DC), fontWeight: FontWeight.bold),
+              TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.person, color: Color(0xFF4A47DC)),
+              leading: const Icon(Icons.person, color: AppTheme.primaryColor),
               title: const Text('Edit Data Diri'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -196,7 +198,7 @@ class _BeritaDesaPageState extends State<BeritaDesaPage> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF4A47DC),
+              foregroundColor: AppTheme.primaryColor,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             child: const Text('TUTUP',
@@ -215,7 +217,7 @@ class _BeritaDesaPageState extends State<BeritaDesaPage> {
         title: const Text(
           'Konfirmasi',
           style:
-              TextStyle(color: Color(0xFF4A47DC), fontWeight: FontWeight.bold),
+              TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
         ),
         content: const Text('Apakah Anda yakin ingin keluar?',
             style: TextStyle(fontSize: 16)),
@@ -275,14 +277,14 @@ class _BeritaDesaPageState extends State<BeritaDesaPage> {
                   children: [
                     const Text(
                       'Selamat datang di',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF4A47DC)),
+                      style: TextStyle(fontSize: 16, color: AppTheme.primaryColor),
                     ),
                     const Text(
                       'LADIMAS',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF4A47DC),
+                        color: AppTheme.primaryColor,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -291,7 +293,7 @@ class _BeritaDesaPageState extends State<BeritaDesaPage> {
                       'Layanan Digital Masyarakat',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF4A47DC),
+                        color: AppTheme.primaryColor,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -316,7 +318,7 @@ class _BeritaDesaPageState extends State<BeritaDesaPage> {
                                 ElevatedButton(
                                   onPressed: _loadBeritaDesa,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF4A47DC),
+                                    backgroundColor: AppTheme.primaryColor,
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
@@ -443,16 +445,13 @@ class _BeritaDesaPageState extends State<BeritaDesaPage> {
             ],
           ),
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          selectedItemColor: const Color(0xFF4A47DC),
-          unselectedItemColor: Colors.grey,
+        bottomNavigationBar: AppBottomNavBar(
           currentIndex: 0, // Berita aktif
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.newspaper), label: 'Beranda'),
-            BottomNavigationBarItem(icon: Icon(Icons.apps), label: 'Layanan'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.settings), label: 'Setting'),
+          showLabels: true,
+          items: [
+            AppBottomNavBar.item(icon: Icons.newspaper, label: 'Beranda'),
+            AppBottomNavBar.item(icon: Icons.apps, label: 'Layanan'),
+            AppBottomNavBar.item(icon: Icons.settings, label: 'Setting'),
           ],
           onTap: (index) {
             if (index == 1) {

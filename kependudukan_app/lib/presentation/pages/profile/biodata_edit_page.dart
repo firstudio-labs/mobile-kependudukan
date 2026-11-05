@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ladimas/core/services/message_service.dart';
+import 'package:ladimas/core/services/cache_service.dart';
 import 'package:ladimas/core/services/wilayah_service.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/domain/repositories/auth_repository.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
@@ -11,8 +13,10 @@ import 'dart:convert';
 
 class BiodataEditPage extends StatefulWidget {
   final Penduduk penduduk;
+  final Map<String, dynamic>? initialBiodata;
 
-  const BiodataEditPage({Key? key, required this.penduduk}) : super(key: key);
+  const BiodataEditPage({Key? key, required this.penduduk, this.initialBiodata})
+      : super(key: key);
 
   @override
   State<BiodataEditPage> createState() => _BiodataEditPageState();
@@ -39,6 +43,7 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
   bool _isLoading = false;
   bool _isRequestingApproval = false;
   Map<String, dynamic>? _currentData;
+  int _memberLoadToken = 0; // Guard anti-race saat ganti anggota beruntun
 
   // Data untuk dropdown
   List<Map<String, dynamic>> _familyMembers = [];
@@ -56,12 +61,40 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
   void initState() {
     super.initState();
 
-    // Populate form dengan data dari widget.penduduk sebagai fallback
+    // Inisialisasi dropdown dasar
+    _initializeDropdownOptions();
+
+    // Populate form langsung dengan data yang ada tanpa delay
     _nikController.text = widget.penduduk.nik;
     _nameController.text = widget.penduduk.name;
     _selectedNik = widget.penduduk.nik;
 
-    // Load data tambahan dari API menggunakan AuthRepository
+    final cachedPayload = CacheService()
+        .get<Map<String, dynamic>>(BiodataCacheKeys.apiBiodataPayload);
+    final initialData = widget.initialBiodata ??
+        (cachedPayload != null && cachedPayload['biodata'] != null
+            ? Map<String, dynamic>.from(cachedPayload['biodata'])
+            : null);
+
+    if (initialData != null && initialData.isNotEmpty) {
+      _currentData = initialData;
+      if (cachedPayload != null) {
+        _familyMembers = List<Map<String, dynamic>>.from(
+            cachedPayload['family_members'] ?? []);
+        _jobs = List<Map<String, dynamic>>.from(cachedPayload['jobs'] ?? []);
+        final userNik = _currentData!['nik']?.toString();
+        final userExists = _familyMembers
+            .any((member) => member['nik']?.toString() == userNik);
+        if (!userExists && userNik != null) {
+          _familyMembers.insert(0, _currentData!);
+        }
+      }
+    }
+
+    // Populate seluruh field secara instan/sinkron
+    _populateFormFieldsSync();
+
+    // Muat data background jika belum ada
     _loadCurrentData();
   }
 
@@ -85,24 +118,36 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
   }
 
   Future<void> _loadCurrentData() async {
-    setState(() => _isLoading = true);
+    final hasData = _currentData != null && _currentData!.isNotEmpty;
+    if (!hasData) {
+      setState(() => _isLoading = true);
+    }
 
     try {
-      // Load biodata dan data keluarga dari API baru
       await _loadBiodataAndFamily();
     } catch (e) {
-      MessageService.showErrorSnackBar(context,
-          'Gagal memuat data tambahan dari server. Menggunakan data yang tersedia.');
-      setState(() {
-        _currentData = {};
-        _isLoading = false;
-      });
-      _populateFormFields();
+      if (!mounted) return;
+      if (!hasData) {
+        MessageService.showErrorSnackBar(context,
+            'Gagal memuat data tambahan dari server. Menggunakan data yang tersedia.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _loadBiodataAndFamily() async {
     try {
+      // Cek cache in-memory dulu (dishare dengan DatakuPage)
+      final cachedData = CacheService()
+          .get<Map<String, dynamic>>(BiodataCacheKeys.apiBiodataPayload);
+      if (cachedData != null) {
+        _applyBiodataData(cachedData);
+        return;
+      }
+
       final authLocalStorage = GetIt.instance<AuthLocalStorage>();
       final rawToken = await authLocalStorage.getStoredToken();
       if (rawToken == null || rawToken.isEmpty) return;
@@ -121,31 +166,12 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
       if (resp.statusCode == 200) {
         final Map<String, dynamic> jsonResp = json.decode(resp.body);
         if (jsonResp['status'] == 'SUCCESS' && jsonResp['data'] != null) {
-          final data = jsonResp['data'];
-
-          // Set current data
-          setState(() {
-            _currentData = data['biodata'] ?? {};
-            _familyMembers =
-                List<Map<String, dynamic>>.from(data['family_members'] ?? []);
-            _jobs = List<Map<String, dynamic>>.from(data['jobs'] ?? []);
-            _isLoading = false;
-          });
-
-          // Tambahkan data user sendiri ke daftar keluarga jika belum ada
-          if (_currentData != null && _currentData!.isNotEmpty) {
-            final userNik = _currentData!['nik']?.toString();
-            final userExists = _familyMembers
-                .any((member) => member['nik']?.toString() == userNik);
-
-            if (!userExists && userNik != null) {
-              _familyMembers.insert(0, _currentData!);
-            }
-          }
-
-          // Initialize dropdown options
-          _initializeDropdownOptions();
-          _populateFormFields();
+          CacheService().set<Map<String, dynamic>>(
+            BiodataCacheKeys.apiBiodataPayload,
+            jsonResp['data'],
+            ttl: const Duration(minutes: 30),
+          );
+          _applyBiodataData(jsonResp['data']);
         }
       } else {
         setState(() => _isLoading = false);
@@ -153,6 +179,48 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
     } catch (e) {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _applyBiodataData(Map<String, dynamic> data) {
+    final newBiodata = Map<String, dynamic>.from(data['biodata'] ?? {});
+    // Pertahankan nama wilayah yang sudah ter-resolve sebelumnya agar tidak hilang
+    if (_currentData != null) {
+      for (final key in [
+        'province_name',
+        'district_name',
+        'sub_district_name',
+        'village_name'
+      ]) {
+        if ((newBiodata[key] == null || newBiodata[key].toString().isEmpty) &&
+            _currentData![key] != null &&
+            _currentData![key].toString().isNotEmpty) {
+          newBiodata[key] = _currentData![key];
+        }
+      }
+    }
+
+    setState(() {
+      _currentData = newBiodata;
+      _familyMembers =
+          List<Map<String, dynamic>>.from(data['family_members'] ?? []);
+      _jobs = List<Map<String, dynamic>>.from(data['jobs'] ?? []);
+      _isLoading = false;
+    });
+
+    // Tambahkan data user sendiri ke daftar keluarga jika belum ada
+    if (_currentData != null && _currentData!.isNotEmpty) {
+      final userNik = _currentData!['nik']?.toString();
+      final userExists =
+          _familyMembers.any((member) => member['nik']?.toString() == userNik);
+
+      if (!userExists && userNik != null) {
+        _familyMembers.insert(0, _currentData!);
+      }
+    }
+
+    // Initialize dropdown options
+    _initializeDropdownOptions();
+    _populateFormFields();
   }
 
   void _initializeDropdownOptions() {
@@ -266,7 +334,8 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
         if (idKey == 'province_id') {
           locationData = await wilayahService.getProvince(idValue.toString());
         } else if (idKey == 'district_id') {
-          locationData = await wilayahService.getDistrict(idValue.toString());
+          locationData = await wilayahService.getDistrict(
+              idValue.toString(), _currentData?['province_id']?.toString());
         } else if (idKey == 'sub_district_id') {
           locationData = await wilayahService.getSubDistrict(
               idValue.toString(), _currentData!['district_id']?.toString());
@@ -281,7 +350,7 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
           final name = locationData['name'].toString();
           return name;
         }
-      } catch (e) {}
+      } catch (_) {}
 
       // Fallback ke ID jika konversi gagal
       return 'ID: $idValue';
@@ -313,11 +382,9 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
     _selectedJob = null;
   }
 
-  Future<void> _populateFormFields() async {
-    // Clear semua field terlebih dahulu
+  void _populateFormFieldsSync() {
     _clearAllFields();
 
-    // Populate dengan data dari API jika ada, fallback ke widget.penduduk
     final nikValue = _currentData?['nik']?.toString() ?? widget.penduduk.nik;
     final nameValue = _currentData?['full_name'] ??
         _currentData?['name'] ??
@@ -328,7 +395,6 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
     _nameController.text = nameValue;
     _kkController.text = kkValue;
 
-    // Normalisasi gender untuk display
     final genderValue = _currentData?['gender'];
     String genderText = '';
     if (genderValue is int) {
@@ -338,63 +404,43 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
     }
     _jenisKelaminController.text = genderText;
 
-    final ageValue = _currentData?['age']?.toString() ?? '';
-    final birthPlaceValue = _currentData?['birth_place'] ?? '';
-    final birthDateValue = _currentData?['birth_date'] ?? '';
-    final addressValue = _currentData?['address'] ?? '';
-    final rtValue = _currentData?['rt']?.toString() ?? '';
-    final rwValue = _currentData?['rw']?.toString() ?? '';
+    _umurController.text = _currentData?['age']?.toString() ?? '';
+    _tempatLahirController.text =
+        _currentData?['birth_place']?.toString() ?? '';
+    _tanggalLahirController.text =
+        _currentData?['birth_date']?.toString() ?? '';
+    _alamatController.text = _currentData?['address']?.toString() ?? '';
+    _rtController.text = _currentData?['rt']?.toString() ?? '';
+    _rwController.text = _currentData?['rw']?.toString() ?? '';
 
-    _umurController.text = ageValue;
-    _tempatLahirController.text = birthPlaceValue;
-    _tanggalLahirController.text = birthDateValue;
-    _alamatController.text = addressValue;
-    _rtController.text = rtValue;
-    _rwController.text = rwValue;
+    // Nama wilayah jika sudah ada
+    final provName = _currentData?['province_name']?.toString() ?? '';
+    final distName = _currentData?['district_name']?.toString() ?? '';
+    final subName = _currentData?['sub_district_name']?.toString() ?? '';
+    final villName = _currentData?['village_name']?.toString() ?? '';
 
-    // Field lokasi - ambil dari ID dan konversi ke nama (async)
-    _provinsiController.text =
-        await _getLocationName('province_id', 'province_name');
-    _kabupatenController.text =
-        await _getLocationName('district_id', 'district_name');
-    _kecamatanController.text =
-        await _getLocationName('sub_district_id', 'sub_district_name');
-    _desaController.text = await _getLocationName('village_id', 'village_name');
+    if (provName.isNotEmpty) _provinsiController.text = provName;
+    if (distName.isNotEmpty) _kabupatenController.text = distName;
+    if (subName.isNotEmpty) _kecamatanController.text = subName;
+    if (villName.isNotEmpty) _desaController.text = villName;
 
-    // Set dropdown values - coba berbagai kemungkinan field name
+    // Dropdown values
     final bloodTypeValue = _currentData?['blood_type']?.toString() ??
         _currentData?['golongan_darah']?.toString() ??
-        _currentData?['bloodtype']?.toString() ??
-        _currentData?['blood_group']?.toString() ??
-        _currentData?['gol_darah']?.toString();
+        _currentData?['bloodtype']?.toString();
     final educationValue = _currentData?['education_status']?.toString() ??
         _currentData?['pendidikan']?.toString() ??
-        _currentData?['education']?.toString() ??
-        _currentData?['pendidikan_terakhir']?.toString() ??
-        _currentData?['education_level']?.toString() ??
-        _currentData?['pendidikan_akhir']?.toString();
+        _currentData?['education']?.toString();
     final jobValue = _currentData?['job_type_id']?.toString() ??
         _currentData?['pekerjaan_id']?.toString() ??
-        _currentData?['job_id']?.toString() ??
-        _currentData?['pekerjaan']?.toString() ??
-        _currentData?['occupation']?.toString() ??
-        _currentData?['work']?.toString();
+        _currentData?['job_id']?.toString();
 
-    // Validasi dan set dropdown values
     _selectedBloodType =
         _validateAndSetDropdownValue(bloodTypeValue, _bloodTypes, 'blood_type');
     _selectedEducation = _validateAndSetDropdownValue(
         educationValue, _educationLevels, 'education');
     _selectedJob = _validateAndSetDropdownValue(jobValue, _jobs, 'job');
 
-    // Final setState untuk memastikan semua field terupdate
-    if (mounted) {
-      setState(() {
-        _refreshKey++;
-      });
-    }
-
-    // Validasi bahwa nilai yang dipilih ada di daftar dropdown
     if (_selectedBloodType != null &&
         !_bloodTypes.any((item) => item['id'] == _selectedBloodType)) {
       _selectedBloodType = null;
@@ -408,7 +454,57 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
       _selectedJob = null;
     }
 
-    setState(() {});
+    if (mounted) {
+      setState(() {
+        _refreshKey++;
+      });
+    }
+
+    // Resolusi nama wilayah di background jika belum lengkap
+    if (provName.isEmpty ||
+        distName.isEmpty ||
+        subName.isEmpty ||
+        villName.isEmpty) {
+      _resolveLocationNamesInBackground();
+    }
+  }
+
+  Future<void> _resolveLocationNamesInBackground() async {
+    if (!mounted || _currentData == null) return;
+    try {
+      final provName = _currentData?['province_name']?.toString() ?? '';
+      final distName = _currentData?['district_name']?.toString() ?? '';
+      final subName = _currentData?['sub_district_name']?.toString() ?? '';
+      final villName = _currentData?['village_name']?.toString() ?? '';
+
+      final results = await Future.wait<String>([
+        provName.isNotEmpty
+            ? Future.value(provName)
+            : _getLocationName('province_id', 'province_name'),
+        distName.isNotEmpty
+            ? Future.value(distName)
+            : _getLocationName('district_id', 'district_name'),
+        subName.isNotEmpty
+            ? Future.value(subName)
+            : _getLocationName('sub_district_id', 'sub_district_name'),
+        villName.isNotEmpty
+            ? Future.value(villName)
+            : _getLocationName('village_id', 'village_name'),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          if (results[0].isNotEmpty) _provinsiController.text = results[0];
+          if (results[1].isNotEmpty) _kabupatenController.text = results[1];
+          if (results[2].isNotEmpty) _kecamatanController.text = results[2];
+          if (results[3].isNotEmpty) _desaController.text = results[3];
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _populateFormFields() async {
+    _populateFormFieldsSync();
   }
 
   Future<void> _requestAdminApproval() async {
@@ -460,7 +556,7 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
         'gender': normalizedGender,
         'age': _umurController.text.isNotEmpty
             ? int.tryParse(_umurController.text)
-            : (_currentData?['age'] ?? null),
+            : _currentData?['age'],
         'birth_place': _tempatLahirController.text.isNotEmpty
             ? _tempatLahirController.text
             : (_currentData?['birth_place'] ?? ''),
@@ -485,7 +581,7 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
             _selectedEducation ?? (_currentData?['education_status'] ?? ''),
         'job_type_id': _selectedJob != null
             ? int.tryParse(_selectedJob!)
-            : (_currentData?['job_type_id'] ?? null),
+            : _currentData?['job_type_id'],
       };
 
       final response = await http.post(
@@ -501,8 +597,12 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
-        final String msg = responseData['message'] ?? 'Permintaan perubahan data telah dikirim ke admin desa. Silakan tunggu persetujuan.';
+        final String msg = responseData['message'] ??
+            'Permintaan perubahan data telah dikirim ke admin desa. Silakan tunggu persetujuan.';
         final bool isPending = responseData['is_pending_alert'] == true;
+
+        // Invalidate cache supaya perubahan tidak tertimpa data lama
+        CacheService().invalidate(BiodataCacheKeys.apiBiodataPayload);
 
         if (mounted) {
           if (isPending) {
@@ -510,8 +610,8 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
           } else {
             MessageService.showSuccessSnackBar(context, msg);
           }
+          Navigator.pop(context);
         }
-        Navigator.pop(context);
       } else {
         String serverMessage =
             'Gagal mengirim permintaan: ${response.statusCode}';
@@ -528,8 +628,10 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
         throw Exception(serverMessage);
       }
     } catch (e) {
-      MessageService.showErrorSnackBar(
-          context, 'Gagal mengirim permintaan: ${e.toString()}');
+      if (mounted) {
+        MessageService.showErrorSnackBar(
+            context, 'Gagal mengirim permintaan: ${e.toString()}');
+      }
     } finally {
       setState(() => _isRequestingApproval = false);
     }
@@ -554,223 +656,277 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
     return null;
   }
 
+  // Komponen Label yang lebih elegan
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF475569), // Warna slate yang modern
+        ),
+      ),
+    );
+  }
+
+  // Komponen Header Section
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppTheme.primaryColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
-      appBar: AppBar(
-        title: const Text(
-          'Edit Biodata',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+        backgroundColor: Colors.white, // Background terang dan bersih
+        appBar: AppBar(
+          centerTitle: true,
+          title: const Text(
+            'Edit Biodata',
+            style: TextStyle(
+              color:
+                  AppTheme.primaryColor, // Teks biru gelap yang lebih berwibawa
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: AppTheme.primaryColor),
         ),
-        backgroundColor: const Color(0xFF4A47DC),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Form(
-                key: _formKey,
-                child: KeyedSubtree(
-                  key: ValueKey(_refreshKey),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        body: Stack(children: [
+          Form(
+            key: _formKey,
+            child: KeyedSubtree(
+              key: ValueKey(_refreshKey),
+              child: ListView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                children: [
+                  _buildSectionHeader(
+                      'Data Pribadi', Icons.person_outline_rounded),
+
+                  // Dropdown NIK
+                  _buildNikDropdown(),
+
+                  // Nama Lengkap (Readonly)
+                  _buildTextField(
+                    controller: _nameController,
+                    label: 'Nama Lengkap',
+                    enabled: false,
+                  ),
+
+                  // KK (Readonly)
+                  _buildTextField(
+                    controller: _kkController,
+                    label: 'Nomor Kartu Keluarga (KK)',
+                    enabled: false,
+                  ),
+
+                  // Jenis Kelamin (Readonly)
+                  _buildTextField(
+                    controller: _jenisKelaminController,
+                    label: 'Jenis Kelamin',
+                    enabled: false,
+                  ),
+
+                  // Umur (Readonly)
+                  _buildTextField(
+                    controller: _umurController,
+                    label: 'Umur',
+                    keyboardType: TextInputType.number,
+                    enabled: false,
+                  ),
+
+                  // Tempat Lahir (Readonly)
+                  _buildTextField(
+                    controller: _tempatLahirController,
+                    label: 'Tempat Lahir',
+                    enabled: false,
+                  ),
+
+                  // Tanggal Lahir (Readonly)
+                  _buildTextField(
+                    controller: _tanggalLahirController,
+                    label: 'Tanggal Lahir (YYYY-MM-DD)',
+                    enabled: false,
+                  ),
+
+                  // Alamat (Readonly)
+                  _buildTextField(
+                    controller: _alamatController,
+                    label: 'Alamat',
+                    maxLines: 3,
+                    enabled: false,
+                  ),
+
+                  Row(
                     children: [
-                      const Text(
-                        'Data Pribadi',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF4A47DC),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _rtController,
+                          label: 'RT',
+                          enabled: false,
                         ),
                       ),
-                      const SizedBox(height: 20),
-
-                      // Dropdown NIK
-                      _buildNikDropdown(),
-
-                      // Nama Lengkap (Readonly)
-                      _buildTextField(
-                        controller: _nameController,
-                        label: 'Nama Lengkap',
-                        enabled: false,
-                      ),
-
-                      // KK (Readonly)
-                      _buildTextField(
-                        controller: _kkController,
-                        label: 'Nomor Kartu Keluarga (KK)',
-                        enabled: false,
-                      ),
-
-                      // Jenis Kelamin (Readonly)
-                      _buildTextField(
-                        controller: _jenisKelaminController,
-                        label: 'Jenis Kelamin',
-                        enabled: false,
-                      ),
-
-                      // Umur (Readonly)
-                      _buildTextField(
-                        controller: _umurController,
-                        label: 'Umur',
-                        keyboardType: TextInputType.number,
-                        enabled: false,
-                      ),
-
-                      // Tempat Lahir (Readonly)
-                      _buildTextField(
-                        controller: _tempatLahirController,
-                        label: 'Tempat Lahir',
-                        enabled: false,
-                      ),
-
-                      // Tanggal Lahir (Readonly)
-                      _buildTextField(
-                        controller: _tanggalLahirController,
-                        label: 'Tanggal Lahir',
-                        enabled: false,
-                      ),
-
-                      // Alamat (Readonly)
-                      _buildTextField(
-                        controller: _alamatController,
-                        label: 'Alamat',
-                        maxLines: 3,
-                        enabled: false,
-                      ),
-
-                      // RT (Readonly)
-                      _buildTextField(
-                        controller: _rtController,
-                        label: 'RT',
-                        enabled: false,
-                      ),
-
-                      // RW (Readonly)
-                      _buildTextField(
-                        controller: _rwController,
-                        label: 'RW',
-                        enabled: false,
-                      ),
-
-                      // Provinsi (Readonly)
-                      _buildTextField(
-                        controller: _provinsiController,
-                        label: 'Provinsi',
-                        enabled: false,
-                      ),
-
-                      // Kabupaten (Readonly)
-                      _buildTextField(
-                        controller: _kabupatenController,
-                        label: 'Kabupaten',
-                        enabled: false,
-                      ),
-
-                      // Kecamatan (Readonly)
-                      _buildTextField(
-                        controller: _kecamatanController,
-                        label: 'Kecamatan',
-                        enabled: false,
-                      ),
-
-                      // Desa (Readonly)
-                      _buildTextField(
-                        controller: _desaController,
-                        label: 'Desa',
-                        enabled: false,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Golongan Darah
-                      _buildBloodTypeDropdown(),
-
-                      // Pendidikan Terakhir
-                      _buildEducationDropdown(),
-
-                      // Pekerjaan
-                      _buildJobDropdown(),
-
-                      const SizedBox(height: 30),
-
-                      // Tombol Request Approval
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isRequestingApproval
-                              ? null
-                              : _requestAdminApproval,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4A47DC),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: _isRequestingApproval
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : const Text(
-                                  'Minta Persetujuan Admin',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Informasi
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue[200]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.blue[600]),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Perubahan data akan diproses setelah mendapat persetujuan dari admin desa.',
-                                style: TextStyle(
-                                  color: Colors.blue[800],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _rwController,
+                          label: 'RW',
+                          enabled: false,
                         ),
                       ),
                     ],
                   ),
-                ),
+
+                  // Provinsi (Readonly)
+                  _buildTextField(
+                    controller: _provinsiController,
+                    label: 'Provinsi',
+                    enabled: false,
+                  ),
+
+                  // Kabupaten (Readonly)
+                  _buildTextField(
+                    controller: _kabupatenController,
+                    label: 'Kabupaten',
+                    enabled: false,
+                  ),
+
+                  // Kecamatan (Readonly)
+                  _buildTextField(
+                    controller: _kecamatanController,
+                    label: 'Kecamatan',
+                    enabled: false,
+                  ),
+
+                  // Desa (Readonly)
+                  _buildTextField(
+                    controller: _desaController,
+                    label: 'Desa',
+                    enabled: false,
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Golongan Darah
+                  _buildBloodTypeDropdown(),
+
+                  // Pendidikan Terakhir
+                  _buildEducationDropdown(),
+
+                  // Pekerjaan
+                  _buildJobDropdown(),
+
+                  const SizedBox(height: 16),
+
+                  // Tombol Request Approval
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed:
+                          _isRequestingApproval ? null : _requestAdminApproval,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shadowColor:
+                            AppTheme.primaryColor.withValues(alpha: 0.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isRequestingApproval
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              'Minta Persetujuan Admin',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Kotak Informasi Biru (Clean and Modern)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF), // Indigo 50
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFFC7D2FE)), // Indigo 200
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            color: Color(0xFF4338CA), size: 20),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Perubahan data akan diproses setelah mendapat persetujuan dari admin desa',
+                            style: TextStyle(
+                              color: Color(0xFF4338CA),
+                              fontSize: 13,
+                              height: 1.4,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
-    );
+          ),
+        ]));
   }
 
+  // Desain TextField yang elegan
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -781,29 +937,48 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: TextFormField(
-        key: ValueKey('${label}_$_refreshKey'),
-        controller: controller,
-        keyboardType: keyboardType,
-        maxLines: maxLines,
-        enabled: enabled,
-        validator: validator,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel(label),
+          TextFormField(
+            key: ValueKey('${label}_$_refreshKey'),
+            controller: controller,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            enabled: enabled,
+            validator: validator,
+            style: TextStyle(
+              fontSize: 14,
+              color: const Color(0xFF1E293B),
+              fontWeight: enabled ? FontWeight.normal : FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                    color: enabled ? Colors.grey[300]! : Colors.transparent),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[200]!),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
+                borderSide:
+                    BorderSide(color: AppTheme.primaryColor, width: 1.5),
+              ),
+              filled: true,
+              fillColor: enabled ? Colors.white : const Color(0xFFF8FAFC),
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey[300]!),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF4A47DC), width: 2),
-          ),
-          filled: true,
-          fillColor: enabled ? Colors.white : Colors.grey[100],
-        ),
+        ],
       ),
     );
   }
@@ -814,43 +989,53 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Pilih Anggota Keluarga',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _buildLabel('Pilih Anggota Keluarga'),
           DropdownButtonFormField<String>(
             value: _selectedNik,
             isExpanded: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B),
+              size: 20,
+            ),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            menuMaxHeight: 300,
+            hint: const Text(
+              'Pilih anggota keluarga...',
+              style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+            ),
             decoration: InputDecoration(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
                 borderSide:
-                    const BorderSide(color: Color(0xFF4A47DC), width: 2),
+                    BorderSide(color: AppTheme.primaryColor, width: 1.5),
               ),
               filled: true,
               fillColor: Colors.white,
             ),
             items: _familyMembers.map((member) {
+              final name = member['full_name'] ?? member['name'] ?? 'N/A';
+              final nik = member['nik']?.toString() ?? '-';
               return DropdownMenuItem<String>(
                 value: member['nik']?.toString(),
-                child: Container(
-                  width: double.infinity,
-                  child: Text(
-                    '${member['nik']} - ${member['full_name'] ?? member['name'] ?? 'N/A'}',
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+                child: Text(
+                  '$nik - $name',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
               );
@@ -869,48 +1054,79 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
   }
 
   void _onNikChanged(String? selectedNik) async {
-    if (selectedNik != null) {
-      setState(() {
-        _selectedNik = selectedNik;
-        _isLoading = true;
-        _currentData = null; // Reset current data
-        _refreshKey++; // Increment refresh key untuk memaksa rebuild
-      });
+    if (selectedNik == null) return;
 
-      try {
-        // Load data lengkap untuk NIK yang dipilih
-        await _loadMemberData(selectedNik);
-      } catch (e) {
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+    // Isi instan dari data lokal anggota keluarga (tanpa menunggu API)
+    final selectedMember = _familyMembers.firstWhere(
+      (member) => member['nik']?.toString() == selectedNik,
+      orElse: () => {},
+    );
+
+    setState(() {
+      _selectedNik = selectedNik;
+      if (selectedMember.isNotEmpty) {
+        _currentData = selectedMember;
+      } else {
+        // Hanya tampilkan spinner jika tidak ada data lokal sama sekali
+        _isLoading = true;
+        _currentData = null;
       }
-    }
+      _refreshKey++;
+    });
+
+    // Refresh data terbaru dari API (di belakang) lalu update ulang form
+    await _loadMemberData(selectedNik);
   }
 
   Future<void> _loadMemberData(String nik) async {
+    final token = ++_memberLoadToken;
+    bool isStale() => !mounted || token != _memberLoadToken;
+    final cache = CacheService();
+
     try {
+      // Cek cache detail penduduk untuk NIK ini
+      final cachedDetail = cache
+          .get<Map<String, dynamic>>('${BiodataCacheKeys.citizenDetail}_$nik');
+      if (cachedDetail != null) {
+        if (!isStale()) {
+          setState(() => _currentData = cachedDetail);
+          await _populateFormFields();
+        }
+        if (mounted && _isLoading) setState(() => _isLoading = false);
+        return;
+      }
+
       final repository = GetIt.instance<AuthRepository>();
       final result = await repository.getPendudukDetail(nik);
 
       result.fold(
         (failure) async {
-          await _fallbackToFamilyMemberData(nik);
+          // Data lokal sudah diisi di _onNikChanged; tampilkan error saja jika kosong
+          if (isStale()) return;
+          if (_currentData == null || _currentData!.isEmpty) {
+            setState(() => _isLoading = false);
+            await _fallbackToFamilyMemberData(nik);
+            if (mounted) setState(() => _isLoading = false);
+          } else if (mounted && _isLoading) {
+            setState(() => _isLoading = false);
+          }
         },
         (data) async {
-          if (mounted) {
-            setState(() {
-              _currentData = data;
-            });
-            await _populateFormFields();
-          }
+          if (isStale()) return;
+          cache.set<Map<String, dynamic>>(
+            '${BiodataCacheKeys.citizenDetail}_$nik',
+            data,
+            ttl: const Duration(minutes: 5),
+          );
+          setState(() => _currentData = data);
+          await _populateFormFields();
+          if (mounted) setState(() => _isLoading = false);
         },
       );
     } catch (e) {
+      if (isStale()) return;
       await _fallbackToFamilyMemberData(nik);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -940,30 +1156,37 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Golongan Darah',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _buildLabel('Golongan Darah'),
           DropdownButtonFormField<String>(
             value: _selectedBloodType,
             isExpanded: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B),
+              size: 20,
+            ),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            menuMaxHeight: 300,
+            hint: const Text(
+              'Pilih golongan darah',
+              style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+            ),
             decoration: InputDecoration(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
                 borderSide:
-                    const BorderSide(color: Color(0xFF4A47DC), width: 2),
+                    BorderSide(color: AppTheme.primaryColor, width: 1.5),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -971,12 +1194,13 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
             items: _bloodTypes.map((bloodType) {
               return DropdownMenuItem<String>(
                 value: bloodType['id'],
-                child: Container(
-                  width: double.infinity,
-                  child: Text(
-                    bloodType['name'],
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+                child: Text(
+                  bloodType['name'],
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
               );
@@ -998,30 +1222,37 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Pendidikan Terakhir',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _buildLabel('Pendidikan Terakhir'),
           DropdownButtonFormField<String>(
             value: _selectedEducation,
             isExpanded: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B),
+              size: 20,
+            ),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            menuMaxHeight: 300,
+            hint: const Text(
+              'Pilih pendidikan terakhir',
+              style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+            ),
             decoration: InputDecoration(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
                 borderSide:
-                    const BorderSide(color: Color(0xFF4A47DC), width: 2),
+                    BorderSide(color: AppTheme.primaryColor, width: 1.5),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -1029,12 +1260,13 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
             items: _educationLevels.map((education) {
               return DropdownMenuItem<String>(
                 value: education['id'],
-                child: Container(
-                  width: double.infinity,
-                  child: Text(
-                    education['name'],
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+                child: Text(
+                  education['name'],
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
               );
@@ -1056,30 +1288,37 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Pekerjaan',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _buildLabel('Pekerjaan'),
           DropdownButtonFormField<String>(
             value: _selectedJob,
             isExpanded: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B),
+              size: 20,
+            ),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            menuMaxHeight: 300,
+            hint: const Text(
+              'Pilih pekerjaan',
+              style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+            ),
             decoration: InputDecoration(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
                 borderSide:
-                    const BorderSide(color: Color(0xFF4A47DC), width: 2),
+                    BorderSide(color: AppTheme.primaryColor, width: 1.5),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -1087,12 +1326,13 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
             items: _jobs.map((job) {
               return DropdownMenuItem<String>(
                 value: job['id']?.toString(),
-                child: Container(
-                  width: double.infinity,
-                  child: Text(
-                    job['name'] ?? job['job_name'] ?? 'N/A',
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+                child: Text(
+                  job['name'] ?? job['job_name'] ?? 'N/A',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
               );

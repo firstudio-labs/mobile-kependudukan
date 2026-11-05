@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/presentation/pages/beranda/admin_beranda_page.dart';
 import 'package:ladimas/presentation/pages/beranda/admin_tagihan_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:ladimas/core/constants/app_constants.dart';
@@ -623,35 +625,55 @@ class _AdminBiodataPageState extends State<AdminBiodataPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Biodata'),
-        backgroundColor: const Color(0xFF4A47DC),
+        centerTitle: true,
+        elevation: 0,
+        title: const Text(
+          'Biodata',
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // RF ID Tag di atas
-              TextFormField(
-                controller: _rfidController,
-                keyboardType: TextInputType.text,
-                decoration: const InputDecoration(
-                  labelText: 'RF ID Tag (opsional)',
-                  hintText: '123 atau kosong',
-                  border: OutlineInputBorder(),
-                ),
+              _buildSectionHeader(
+                'Pilih Penduduk',
+                Icons.person_search_outlined,
               ),
-              const SizedBox(height: 12),
 
-              // Search dan Dropdown NIK seperti di Tagihan Form
+              // RF ID
+              _textField(
+                controller: _rfidController,
+                label: 'RF ID Tag (opsional)',
+                hintText: '123 atau kosong',
+                keyboardType: TextInputType.text,
+              ),
+
+              // Search NIK / Nama
+              _buildLabel('Cari NIK / Nama'),
               TextField(
                 controller: _nikController,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  labelText: 'Cari NIK / Nama',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.primaryColor,
+                ),
+                decoration: _inputDecoration(
+                  hintText: 'Cari berdasarkan NIK atau nama',
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: Color(0xFF64748B),
+                  ),
                 ),
                 onChanged: (v) => setState(() {
                   _nikSearch = v.trim().toLowerCase();
@@ -661,61 +683,66 @@ class _AdminBiodataPageState extends State<AdminBiodataPage> {
                   }
                 }),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
+
+              _buildLabel('Pilih NIK Penduduk'),
               Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _selectedNik,
-                      decoration: const InputDecoration(
-                        labelText: 'Pilih NIK Penduduk',
-                        isDense: false,
-                        contentPadding: EdgeInsets.fromLTRB(16, 24, 16, 24),
-                      ),
                       isExpanded: true,
-                      style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87),
+                      icon: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Color(0xFF64748B),
+                        size: 20,
+                      ),
+                      dropdownColor: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      menuMaxHeight: 320,
+                      decoration: _inputDecoration(),
+                      hint: const Text(
+                        'Pilih penduduk...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
                       items: _filteredPenduduk()
                           .take(_maxDropdownItems)
-                          .map((e) => DropdownMenuItem<String>(
-                                value: e['nik'] as String,
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Text(
-                                    '${e['full_name'] ?? '-'} (${e['nik']})',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87),
-                                  ),
+                          .map(
+                            (e) => DropdownMenuItem<String>(
+                              value: e['nik'] as String,
+                              child: Text(
+                                '${e['full_name'] ?? '-'} (${e['nik']})',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppTheme.primaryColor,
                                 ),
-                              ))
+                              ),
+                            ),
+                          )
                           .toList(),
                       selectedItemBuilder: (context) {
-                        // Tampilkan nama saja untuk menghindari text terpotong
                         final list = _filteredPenduduk()
                             .take(_maxDropdownItems)
                             .toList();
                         return list
-                            .map((e) => Container(
-                                  alignment: Alignment.centerLeft,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 4.0),
-                                  child: Text(
-                                    '${e['full_name'] ?? '-'}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
+                            .map(
+                              (e) => Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  '${e['full_name'] ?? '-'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: AppTheme.primaryColor,
                                   ),
-                                ))
+                                ),
+                              ),
+                            )
                             .toList();
                       },
                       onChanged: (v) async {
@@ -727,312 +754,370 @@ class _AdminBiodataPageState extends State<AdminBiodataPage> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (_loadingPenduduk)
+                  if (_loadingPenduduk) ...[
+                    const SizedBox(width: 12),
                     const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
+                  ],
                 ],
               ),
-              // Pesan info untuk hasil terlalu banyak dihilangkan
-              const SizedBox(height: 12),
-              const SizedBox(height: 12),
+
+              _buildSectionHeader(
+                'Data Pribadi',
+                Icons.badge_outlined,
+              ),
+
               _textField(
-                  controller: _kkController,
-                  label: 'No KK',
-                  keyboardType: TextInputType.number),
-              const SizedBox(height: 12),
-              _textField(controller: _nameController, label: 'Nama Lengkap'),
-              const SizedBox(height: 12),
-              _dropdownField('Jenis Kelamin', 'gender', _selectedGender, (val) {
-                setState(() => _selectedGender = val);
-              }),
-              const SizedBox(height: 12),
+                controller: _kkController,
+                label: 'No KK',
+                keyboardType: TextInputType.number,
+              ),
               _textField(
-                  controller: _birthPlaceController, label: 'Tempat Lahir'),
-              const SizedBox(height: 12),
+                controller: _nameController,
+                label: 'Nama Lengkap',
+              ),
+              _dropdownField(
+                'Jenis Kelamin',
+                'gender',
+                _selectedGender,
+                (val) => setState(() => _selectedGender = val),
+              ),
               _textField(
-                  controller: _birthDateController, label: 'Tanggal Lahir'),
-              const SizedBox(height: 12),
+                controller: _birthPlaceController,
+                label: 'Tempat Lahir',
+              ),
               _textField(
-                  controller: _ageController,
-                  label: 'Umur',
-                  keyboardType: TextInputType.number),
-              const SizedBox(height: 12),
-              // Wilayah ditampilkan sebelum Alamat
-              _dropdownWilayah('Provinsi', _provinces, _provinceId,
-                  (value) async {
-                setState(() {
-                  _provinceId = value;
-                  _districtId = null;
-                  _subDistrictId = null;
-                  _villageId = null;
-                  _districts = [];
-                  _subDistricts = [];
-                  _villages = [];
-                });
-                if (value != null) {
-                  final provinceCode = _getCodeById(_provinces, value);
-                  if (provinceCode != null) {
-                    await _loadDistricts(provinceCode);
+                controller: _birthDateController,
+                label: 'Tanggal Lahir',
+              ),
+              _textField(
+                controller: _ageController,
+                label: 'Umur',
+                keyboardType: TextInputType.number,
+              ),
+
+              _buildSectionHeader(
+                'Alamat & Wilayah',
+                Icons.location_on_outlined,
+              ),
+
+              _dropdownWilayah(
+                'Provinsi',
+                _provinces,
+                _provinceId,
+                (value) async {
+                  setState(() {
+                    _provinceId = value;
+                    _districtId = null;
+                    _subDistrictId = null;
+                    _villageId = null;
+                    _districts = [];
+                    _subDistricts = [];
+                    _villages = [];
+                  });
+                  if (value != null) {
+                    final provinceCode = _getCodeById(_provinces, value);
+                    if (provinceCode != null) {
+                      await _loadDistricts(provinceCode);
+                    }
                   }
-                }
-              }),
-              const SizedBox(height: 12),
-              _dropdownWilayah('Kabupaten/Kota', _districts, _districtId,
-                  (value) async {
-                setState(() {
-                  _districtId = value;
-                  _subDistrictId = null;
-                  _villageId = null;
-                  _subDistricts = [];
-                  _villages = [];
-                });
-                if (value != null) {
-                  final districtCode = _getCodeById(_districts, value);
-                  if (districtCode != null) {
-                    await _loadSubDistricts(districtCode);
+                },
+              ),
+              _dropdownWilayah(
+                'Kabupaten/Kota',
+                _districts,
+                _districtId,
+                (value) async {
+                  setState(() {
+                    _districtId = value;
+                    _subDistrictId = null;
+                    _villageId = null;
+                    _subDistricts = [];
+                    _villages = [];
+                  });
+                  if (value != null) {
+                    final districtCode = _getCodeById(_districts, value);
+                    if (districtCode != null) {
+                      await _loadSubDistricts(districtCode);
+                    }
                   }
-                }
-              }),
-              const SizedBox(height: 12),
-              _dropdownWilayah('Kecamatan', _subDistricts, _subDistrictId,
-                  (value) async {
-                setState(() {
-                  _subDistrictId = value;
-                  _villageId = null;
-                  _villages = [];
-                });
-                if (value != null) {
-                  final subDistrictCode = _getCodeById(_subDistricts, value);
-                  if (subDistrictCode != null) {
-                    await _loadVillages(subDistrictCode);
+                },
+              ),
+              _dropdownWilayah(
+                'Kecamatan',
+                _subDistricts,
+                _subDistrictId,
+                (value) async {
+                  setState(() {
+                    _subDistrictId = value;
+                    _villageId = null;
+                    _villages = [];
+                  });
+                  if (value != null) {
+                    final subDistrictCode = _getCodeById(_subDistricts, value);
+                    if (subDistrictCode != null) {
+                      await _loadVillages(subDistrictCode);
+                    }
                   }
-                }
-              }),
-              const SizedBox(height: 12),
-              _dropdownWilayah('Desa', _villages, _villageId, (value) {
-                setState(() {
-                  _villageId = value;
-                });
-              }),
-              const SizedBox(height: 12),
-              // Alamat disabled
-              TextFormField(
+                },
+              ),
+              _dropdownWilayah(
+                'Desa',
+                _villages,
+                _villageId,
+                (value) {
+                  setState(() {
+                    _villageId = value;
+                  });
+                },
+              ),
+              _textField(
                 controller: _addressController,
+                label: 'Alamat',
                 maxLines: 3,
                 enabled: false,
-                decoration: InputDecoration(
-                  labelText: 'Alamat',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.grey.shade200,
-                ),
               ),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(
-                    child: TextFormField(
-                        controller: _rtController,
-                        enabled: false,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: 'RT',
-                          border: OutlineInputBorder(),
-                          filled: true,
-                          fillColor: Colors.grey.shade200,
-                        ))),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: TextFormField(
-                        controller: _rwController,
-                        enabled: false,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: 'RW',
-                          border: OutlineInputBorder(),
-                          filled: true,
-                          fillColor: Colors.grey.shade200,
-                        ))),
-              ]),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _postalCodeController,
-                enabled: false,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Kode Pos',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.grey.shade200,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _hamletController,
-                enabled: false,
-                decoration: InputDecoration(
-                  labelText: 'Dusun',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.grey.shade200,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              _dropdownField('Golongan Darah', 'blood_type', _selectedBloodType,
-                  (val) {
-                setState(() => _selectedBloodType = val);
-              }),
-              const SizedBox(height: 12),
-              _dropdownField('Agama', 'religion', _selectedReligion, (val) {
-                setState(() => _selectedReligion = val);
-              }),
-              const SizedBox(height: 12),
-              _dropdownField(
-                  'Status Kawin', 'marital_status', _selectedMaritalStatus,
-                  (val) {
-                setState(() => _selectedMaritalStatus = val);
-              }),
-              const SizedBox(height: 12),
-              // Grup Akta Kawin (dropdown, nomor, tanggal)
-              _dropdownField('Akta Kawin', 'marital_certificate',
-                  _selectedMaritalCertificate, (val) {
-                setState(() => _selectedMaritalCertificate = val);
-              }),
-              const SizedBox(height: 12),
-              _textField(
-                  controller: _maritalCertificateNoController,
-                  label: 'No Akta Kawin'),
-              const SizedBox(height: 12),
-              _textField(
-                  controller: _marriageDateController, label: 'Tanggal Kawin'),
-              const SizedBox(height: 12),
-              // Grup Akta Cerai (dropdown, nomor, tanggal)
-              _dropdownField('Akta Cerai', 'divorce_certificate',
-                  _selectedDivorceCertificate, (val) {
-                setState(() => _selectedDivorceCertificate = val);
-              }),
-              const SizedBox(height: 12),
-              _textField(
-                  controller: _divorceCertificateNoController,
-                  label: 'No Akta Cerai'),
-              const SizedBox(height: 12),
-              _textField(
-                  controller: _divorceCertificateDateController,
-                  label: 'Tanggal Akta Cerai'),
-              const SizedBox(height: 12),
-              // Grup Akta Lahir (dropdown, nomor)
-              _dropdownField(
-                  'Akta Lahir', 'birth_certificate', _selectedBirthCertificate,
-                  (val) {
-                setState(() => _selectedBirthCertificate = val);
-              }),
-              const SizedBox(height: 12),
-              _textField(
-                  controller: _birthCertificateNoController,
-                  label: 'No Akta Lahir'),
-              const SizedBox(height: 12),
-              _dropdownField(
-                  'Kewarganegaraan', 'citizen_status', _selectedCitizenStatus,
-                  (val) {
-                setState(() => _selectedCitizenStatus = val);
-              }),
-              const SizedBox(height: 12),
-              _dropdownField('Status Dalam Keluarga', 'family_status',
-                  _selectedFamilyStatus, (val) {
-                setState(() => _selectedFamilyStatus = val);
-              }),
-              const SizedBox(height: 12),
-              _dropdownField('Kelainan Fisik & Mental', 'mental_disorders',
-                  _selectedMentalDisorders, (val) {
-                setState(() => _selectedMentalDisorders = val);
-              }),
-              const SizedBox(height: 12),
-              _dropdownField(
-                  'Pendidikan', 'education_status', _selectedEducationStatus,
-                  (val) {
-                setState(() => _selectedEducationStatus = val);
-              }),
-              const SizedBox(height: 12),
-              _dropdownField(
-                  'Penyandang Cacat', 'disabilities', _selectedDisabilities,
-                  (val) {
-                setState(() => _selectedDisabilities = val);
-              }),
-              const SizedBox(height: 12),
-              _dropdownJobs(),
-              const SizedBox(height: 12),
-              _textField(controller: _telephoneController, label: 'Telepon'),
-              const SizedBox(height: 12),
-              _textField(controller: _emailController, label: 'Email'),
-              const SizedBox(height: 12),
-              _textField(controller: _fatherController, label: 'Nama Ayah'),
-              const SizedBox(height: 12),
-              _textField(
-                  controller: _nikFatherController,
-                  label: 'NIK Ayah',
-                  keyboardType: TextInputType.number),
-              const SizedBox(height: 12),
-              _textField(controller: _motherController, label: 'Nama Ibu'),
-              const SizedBox(height: 12),
-              _textField(
-                  controller: _nikMotherController,
-                  label: 'NIK Ibu',
-                  keyboardType: TextInputType.number),
-              // Hidden fields per website (tidak ditampilkan, tetap dikirim)
-              const SizedBox(height: 0),
-              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _loading ? null : _clearAllFields,
-                      icon: const Icon(Icons.clear),
-                      label: const Text('Bersihkan Form'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[600],
-                        foregroundColor: Colors.white,
+                    child: _textField(
+                      controller: _rtController,
+                      label: 'RT',
+                      keyboardType: TextInputType.number,
+                      enabled: false,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _textField(
+                      controller: _rwController,
+                      label: 'RW',
+                      keyboardType: TextInputType.number,
+                      enabled: false,
+                    ),
+                  ),
+                ],
+              ),
+              _textField(
+                controller: _postalCodeController,
+                label: 'Kode Pos',
+                keyboardType: TextInputType.number,
+                enabled: false,
+              ),
+              _textField(
+                controller: _hamletController,
+                label: 'Dusun',
+                enabled: false,
+              ),
+
+              _buildSectionHeader(
+                'Data Kependudukan',
+                Icons.account_balance_outlined,
+              ),
+
+              _dropdownField(
+                'Golongan Darah',
+                'blood_type',
+                _selectedBloodType,
+                (val) => setState(() => _selectedBloodType = val),
+              ),
+              _dropdownField(
+                'Agama',
+                'religion',
+                _selectedReligion,
+                (val) => setState(() => _selectedReligion = val),
+              ),
+              _dropdownField(
+                'Status Kawin',
+                'marital_status',
+                _selectedMaritalStatus,
+                (val) => setState(() => _selectedMaritalStatus = val),
+              ),
+
+              _buildSectionHeader(
+                'Dokumen Kependudukan',
+                Icons.description_outlined,
+              ),
+
+              _dropdownField(
+                'Akta Kawin',
+                'marital_certificate',
+                _selectedMaritalCertificate,
+                (val) => setState(() => _selectedMaritalCertificate = val),
+              ),
+              _textField(
+                controller: _maritalCertificateNoController,
+                label: 'No Akta Kawin',
+              ),
+              _textField(
+                controller: _marriageDateController,
+                label: 'Tanggal Kawin',
+              ),
+              _dropdownField(
+                'Akta Cerai',
+                'divorce_certificate',
+                _selectedDivorceCertificate,
+                (val) => setState(() => _selectedDivorceCertificate = val),
+              ),
+              _textField(
+                controller: _divorceCertificateNoController,
+                label: 'No Akta Cerai',
+              ),
+              _textField(
+                controller: _divorceCertificateDateController,
+                label: 'Tanggal Akta Cerai',
+              ),
+              _dropdownField(
+                'Akta Lahir',
+                'birth_certificate',
+                _selectedBirthCertificate,
+                (val) => setState(() => _selectedBirthCertificate = val),
+              ),
+              _textField(
+                controller: _birthCertificateNoController,
+                label: 'No Akta Lahir',
+              ),
+
+              _buildSectionHeader(
+                'Status & Kondisi',
+                Icons.fact_check_outlined,
+              ),
+
+              _dropdownField(
+                'Kewarganegaraan',
+                'citizen_status',
+                _selectedCitizenStatus,
+                (val) => setState(() => _selectedCitizenStatus = val),
+              ),
+              _dropdownField(
+                'Status Dalam Keluarga',
+                'family_status',
+                _selectedFamilyStatus,
+                (val) => setState(() => _selectedFamilyStatus = val),
+              ),
+              _dropdownField(
+                'Kelainan Fisik & Mental',
+                'mental_disorders',
+                _selectedMentalDisorders,
+                (val) => setState(() => _selectedMentalDisorders = val),
+              ),
+              _dropdownField(
+                'Pendidikan',
+                'education_status',
+                _selectedEducationStatus,
+                (val) => setState(() => _selectedEducationStatus = val),
+              ),
+              _dropdownField(
+                'Penyandang Cacat',
+                'disabilities',
+                _selectedDisabilities,
+                (val) => setState(() => _selectedDisabilities = val),
+              ),
+              _dropdownJobs(),
+
+              _buildSectionHeader(
+                'Kontak & Keluarga',
+                Icons.family_restroom_outlined,
+              ),
+
+              _textField(
+                controller: _telephoneController,
+                label: 'Telepon',
+              ),
+              _textField(
+                controller: _emailController,
+                label: 'Email',
+              ),
+              _textField(
+                controller: _fatherController,
+                label: 'Nama Ayah',
+              ),
+              _textField(
+                controller: _nikFatherController,
+                label: 'NIK Ayah',
+                keyboardType: TextInputType.number,
+              ),
+              _textField(
+                controller: _motherController,
+                label: 'Nama Ibu',
+              ),
+              _textField(
+                controller: _nikMotherController,
+                label: 'NIK Ibu',
+                keyboardType: TextInputType.number,
+              ),
+
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _loading ? null : _clearAllFields,
+                        icon: const Icon(Icons.clear_rounded),
+                        label: const Text(
+                          'Bersihkan Form',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE2E8F0),
+                          foregroundColor: const Color(0xFF475569),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _loading ? null : _submit,
-                      icon: _loading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.save),
-                      label: const Text('Simpan Perubahan'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4A47DC),
-                        foregroundColor: Colors.white,
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _loading ? null : _submit,
+                        icon: _loading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.save_rounded),
+                        label: const Text(
+                          'Simpan Perubahan',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: AppTheme.whiteColor,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: AppBottomNavBar(
         currentIndex: 2,
-        selectedItemColor: const Color(0xFF4A47DC),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home, size: 28), label: ''),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long, size: 28), label: ''),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person, size: 28), label: ''),
+        items: [
+          AppBottomNavBar.item(icon: Icons.home_outlined, label: ''),
+          AppBottomNavBar.item(icon: Icons.receipt_long_outlined, label: ''),
+          AppBottomNavBar.item(icon: Icons.person, label: ''),
         ],
         onTap: (index) {
           switch (index) {
@@ -1131,131 +1216,330 @@ class _AdminBiodataPageState extends State<AdminBiodataPage> {
     });
   }
 
-  Widget _textField(
-      {required TextEditingController controller,
-      required String label,
-      TextInputType? keyboardType,
-      bool readOnly = false}) {
-    return TextFormField(
-      controller: controller,
-      readOnly: readOnly,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        filled: readOnly,
-        fillColor: readOnly ? Colors.grey.shade100 : null,
+  InputDecoration _inputDecoration({
+    String? hintText,
+    Widget? prefixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: const TextStyle(
+        fontSize: 14,
+        color: Color(0xFF94A3B8),
+      ),
+      prefixIcon: prefixIcon,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 14,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey[200]!),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(10)),
+        borderSide: BorderSide(
+          color: Color(0xFF4A47DC),
+          width: 1.5,
+        ),
+      ),
+      filled: true,
+      fillColor: Colors.white,
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF475569),
+        ),
       ),
     );
   }
 
-  Widget _dropdownField(String label, String enumKey, String? value,
-      Function(String?) onChanged) {
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: AppTheme.primaryColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _textField({
+    required TextEditingController controller,
+    required String label,
+    TextInputType? keyboardType,
+    bool readOnly = false,
+    bool enabled = true,
+    int maxLines = 1,
+    String? hintText,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel(label),
+          TextFormField(
+            controller: controller,
+            readOnly: readOnly,
+            enabled: enabled,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.primaryColor,
+              fontWeight: enabled ? FontWeight.normal : FontWeight.w600,
+            ),
+            decoration: _inputDecoration(hintText: hintText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dropdownField(
+    String label,
+    String enumKey,
+    String? value,
+    Function(String?) onChanged,
+  ) {
     final rawOptions = _enums[enumKey] ?? [];
-    // Normalisasi ke String dan deduplikasi berdasarkan 'value' string
+
     final Set<String> seen = {};
     final options = rawOptions
-        .map((e) => {
-              'value': (e['value']?.toString() ?? '').trim(),
-              'label': (e['label']?.toString() ?? '').trim(),
-            })
+        .map(
+          (e) => {
+            'value': (e['value']?.toString() ?? '').trim(),
+            'label': (e['label']?.toString() ?? '').trim(),
+          },
+        )
         .where((e) => (e['value'] as String).isNotEmpty)
         .where((e) => seen.add(e['value'] as String))
         .toList();
+
     final values = options.map<String>((e) => e['value'] as String).toSet();
     final String? safeValue =
         (value != null && values.contains(value)) ? value : null;
-    return InputDecorator(
-      decoration:
-          InputDecoration(labelText: label, border: const OutlineInputBorder()),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: safeValue,
-          hint: const Text('Pilih'),
-          items: options
-              .map((e) => DropdownMenuItem<String>(
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel(label),
+          DropdownButtonFormField<String>(
+            value: safeValue,
+            isExpanded: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B),
+              size: 20,
+            ),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            menuMaxHeight: 300,
+            decoration: _inputDecoration(),
+            hint: const Text(
+              'Pilih',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+            items: options
+                .map(
+                  (e) => DropdownMenuItem<String>(
                     value: e['value'] as String,
-                    child: Text(e['label'] as String),
-                  ))
-              .toList(),
-          onChanged: onChanged,
-        ),
+                    child: Text(
+                      e['label'] as String,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _dropdownWilayah(String label, List<Map<String, dynamic>> items,
-      int? value, Function(int?)? onChanged) {
-    // Normalisasi id (id/code/value) ke int dan deduplikasi
+  Widget _dropdownWilayah(
+    String label,
+    List<Map<String, dynamic>> items,
+    int? value,
+    Function(int?)? onChanged,
+  ) {
     final Set<int> seen = {};
     final normalized = items
-        .map((e) => {
-              'id': _toInt(e['id']) ?? _toInt(e['code']) ?? _toInt(e['value']),
-              'label': (e['name'] ?? e['label'] ?? e['text'] ?? '').toString(),
-            })
+        .map(
+          (e) => {
+            'id': _toInt(e['id']) ?? _toInt(e['code']) ?? _toInt(e['value']),
+            'label': (e['name'] ?? e['label'] ?? e['text'] ?? '').toString(),
+          },
+        )
         .where((e) => e['id'] != null)
         .where((e) => seen.add(e['id'] as int))
         .toList();
+
     final ids = normalized.map<int>((e) => e['id'] as int).toSet();
     final int? safeValue =
         (value != null && ids.contains(value)) ? value : null;
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        filled: onChanged == null,
-        fillColor: onChanged == null ? Colors.grey.shade100 : null,
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          isExpanded: true,
-          value: safeValue,
-          hint: const Text('Pilih'),
-          items: normalized
-              .map((e) => DropdownMenuItem<int>(
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel(label),
+          DropdownButtonFormField<int>(
+            value: safeValue,
+            isExpanded: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B),
+              size: 20,
+            ),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            menuMaxHeight: 300,
+            decoration: _inputDecoration(),
+            hint: const Text(
+              'Pilih',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+            items: normalized
+                .map(
+                  (e) => DropdownMenuItem<int>(
                     value: e['id'] as int,
-                    child: Text(e['label'] as String),
-                  ))
-              .toList(),
-          onChanged: onChanged,
-        ),
+                    child: Text(
+                      e['label'] as String,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }
 
   Widget _dropdownJobs() {
-    // Normalisasi dan deduplikasi jobs by id
     final Set<int> seen = {};
     final normalized = _jobs
-        .map((e) => {
-              'id': _toInt(e['id']),
-              'label': (e['name'] ?? e['label'] ?? '').toString(),
-            })
+        .map(
+          (e) => {
+            'id': _toInt(e['id']),
+            'label': (e['name'] ?? e['label'] ?? '').toString(),
+          },
+        )
         .where((e) => e['id'] != null)
         .where((e) => seen.add(e['id'] as int))
         .toList();
+
     final ids = normalized.map<int>((e) => e['id'] as int).toSet();
     final int? safeValue =
         (_selectedJobTypeId != null && ids.contains(_selectedJobTypeId))
             ? _selectedJobTypeId
             : null;
-    return InputDecorator(
-      decoration: const InputDecoration(
-          labelText: 'Pekerjaan', border: OutlineInputBorder()),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          isExpanded: true,
-          value: safeValue,
-          hint: const Text('Pilih'),
-          items: normalized
-              .map((e) => DropdownMenuItem<int>(
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel('Pekerjaan'),
+          DropdownButtonFormField<int>(
+            value: safeValue,
+            isExpanded: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B),
+              size: 20,
+            ),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            menuMaxHeight: 300,
+            decoration: _inputDecoration(),
+            hint: const Text(
+              'Pilih pekerjaan',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+            items: normalized
+                .map(
+                  (e) => DropdownMenuItem<int>(
                     value: e['id'] as int,
-                    child: Text(e['label'] as String),
-                  ))
-              .toList(),
-          onChanged: (v) => setState(() => _selectedJobTypeId = v),
-        ),
+                    child: Text(
+                      e['label'] as String,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) => setState(() => _selectedJobTypeId = v),
+          ),
+        ],
       ),
     );
   }

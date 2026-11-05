@@ -55,7 +55,7 @@ class _VillageReportPageState extends State<VillageReportPage> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Lapor Desa'),
-        backgroundColor: const Color(0xFF4A47DC),
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -262,7 +262,7 @@ class _VillageReportPageState extends State<VillageReportPage> {
             _loadReports();
           }
         },
-        backgroundColor: const Color(0xFF4A47DC),
+        backgroundColor: AppTheme.primaryColor,
         child: const Icon(Icons.add),
       ),
     );

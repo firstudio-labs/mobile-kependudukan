@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ladimas/data/datasources/admin_pemerintah_desa_api_service.dart';
 import 'package:ladimas/data/datasources/auth_local_storage.dart';
@@ -6,6 +7,7 @@ import 'package:ladimas/data/datasources/village_stats_api_service.dart';
 import 'package:ladimas/data/models/pemerintah_desa_model.dart';
 import 'package:ladimas/presentation/pages/beranda/admin_tagihan_page.dart';
 import 'package:ladimas/presentation/pages/beranda/admin_biodata_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_bloc.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_event.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_state.dart';
@@ -14,6 +16,7 @@ import 'package:ladimas/core/services/wilayah_service.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:http/http.dart' as http;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 
 class AdminBerandaPage extends StatefulWidget {
@@ -269,10 +272,10 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F6FA),
+        backgroundColor: const Color(0xFFF8FAFC),
         body: RefreshIndicator(
           onRefresh: () => _loadData(forceRefresh: true),
-          color: const Color(0xFF4A47DC),
+          color: AppTheme.primaryColor,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -300,20 +303,12 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
             ),
           ),
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          selectedItemColor: const Color(0xFF4A47DC),
-          unselectedItemColor: Colors.grey,
+        bottomNavigationBar: AppBottomNavBar(
           currentIndex: 0, // Beranda
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.person, size: 28), label: 'Biodata'),
+          items: [
+            AppBottomNavBar.item(icon: Icons.home, label: 'Beranda'),
+            AppBottomNavBar.item(icon: Icons.receipt_long_outlined, label: 'Tagihan'),
+            AppBottomNavBar.item(icon: Icons.person_outline, label: 'Biodata'),
           ],
           onTap: (index) {
             switch (index) {
@@ -414,7 +409,7 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                     children: [
                       const Text('• ',
                           style: TextStyle(
-                              fontSize: 14, color: Color(0xFF4A47DC))),
+                              fontSize: 14, color: AppTheme.primaryColor)),
                       Expanded(
                         child: Text(
                           t,
@@ -849,7 +844,7 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                       children: [
                         const Text('• ',
                             style: TextStyle(
-                                fontSize: 14, color: Color(0xFF4A47DC))),
+                                fontSize: 14, color: AppTheme.primaryColor)),
                         Expanded(
                           child: Text(
                             nama,
@@ -918,106 +913,185 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
       greeting = 'Selamat Malam';
     }
 
+    final displayName = _adminName.isNotEmpty ? _adminName : 'Admin';
+
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(color: Color(0xFFF5F6FA)),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1),
+        ),
+      ),
       child: SafeArea(
+        bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 40, 20, 30),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting and Logout
+              // Top Bar: Avatar, Greeting, and Logout Button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/app_icon.png',
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: 24,
-                              );
-                            },
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/app_icon.png',
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.person,
+                                  color: AppTheme.primaryColor,
+                                  size: 24,
+                                );
+                              },
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            greeting,
-                            style: const TextStyle(
-                              color: Color(0xFF4A47DC),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                greeting,
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                displayName,
+                                style: const TextStyle(
+                                  color: Color(0xFF1E293B),
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _adminName.isNotEmpty ? _adminName : 'Admin',
-                            style: const TextStyle(
-                              color: Color(0xFF4A47DC),
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
-                  IconButton(
-                    onPressed: () => _showLogoutDialog(context),
-                    icon: const Icon(
-                      Icons.logout,
-                      color: Color(0xFF4A47DC),
+                  const SizedBox(width: 12),
+                  Material(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _showLogoutDialog(context),
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFECACA)),
+                        ),
+                        child: const Icon(
+                          Icons.logout_rounded,
+                          color: Color(0xFFDC2626),
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 18),
 
-              // LADIMAS Title with different font sizes
-              RichText(
-                text: const TextSpan(
+              // Admin Welcome Banner Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x20087EAB),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
                   children: [
-                    TextSpan(
-                      text: 'Selamat Datang di\n',
-                      style: TextStyle(
-                        color: Color.fromARGB(255, 74, 71, 220),
-                        fontSize: 18,
-                        fontWeight: FontWeight.normal,
-                        height: 1.2,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'PORTAL ADMINISTRATOR',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Kelola Layanan Desa',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Pantau statistik kependudukan, biodata warga, dan administrasi desa terintegrasi.',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 12,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    TextSpan(
-                      text: 'LADIMAS\n',
-                      style: TextStyle(
-                        color: Color(0xFF4A47DC),
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
                       ),
-                    ),
-                    TextSpan(
-                      text: 'Layanan Digital Masyarakat',
-                      style: TextStyle(
-                        color: Color(0xFF4A47DC),
-                        fontSize: 16,
-                        fontWeight: FontWeight.normal,
-                        height: 1.2,
+                      child: const Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: Colors.white,
+                        size: 26,
                       ),
                     ),
                   ],
@@ -1039,7 +1113,7 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF9E9E9E).withOpacity(0.1),
+            color: Color(0x06000000),
             spreadRadius: 1,
             blurRadius: 8,
             offset: const Offset(0, 2),
@@ -1145,7 +1219,7 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                       _isPerangkatDesaExpanded
                           ? Icons.keyboard_arrow_up
                           : Icons.keyboard_arrow_down,
-                      color: const Color(0xFF4A47DC),
+                      color: AppTheme.primaryColor,
                       size: 24,
                     ),
                   ],
@@ -1167,7 +1241,7 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Color(0x06000000),
             spreadRadius: 1,
             blurRadius: 8,
             offset: const Offset(0, 2),
@@ -1361,7 +1435,7 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                   _isProfilDesaExpanded
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
-                  color: const Color(0xFF4A47DC),
+                  color: AppTheme.primaryColor,
                   size: 24,
                 ),
               ],
@@ -1441,7 +1515,7 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                     border: Border.all(color: Colors.white, width: 4),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Color(0x08000000),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -1449,10 +1523,10 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                   ),
                   child: CircleAvatar(
                     radius: 28,
-                    backgroundColor: const Color(0xFF4A47DC),
+                    backgroundColor: AppTheme.primaryColor,
                     backgroundImage:
                         (finalPhoto != null && finalPhoto.trim().isNotEmpty)
-                            ? NetworkImage(finalPhoto)
+                            ? CachedNetworkImageProvider(finalPhoto)
                             : null,
                     child: (finalPhoto == null || finalPhoto.trim().isEmpty)
                         ? const Icon(Icons.person,
@@ -1517,10 +1591,13 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                   child: InteractiveViewer(
                     minScale: 0.5,
                     maxScale: 5.0,
-                    child: Image.network(
-                      imageUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      placeholder: (_, __) => const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                      errorWidget: (_, __, ___) => const Icon(
                         Icons.broken_image,
                         color: Colors.white,
                         size: 64,
@@ -2312,7 +2389,7 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
         title: const Text(
           'Konfirmasi',
           style:
-              TextStyle(color: Color(0xFF4A47DC), fontWeight: FontWeight.bold),
+              TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
         ),
         content: const Text('Apakah Anda yakin ingin keluar?',
             style: TextStyle(fontSize: 16)),
@@ -2373,7 +2450,7 @@ class _Badge extends StatelessWidget {
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withOpacity(.3),
+            color: Color(0x40000000),
             offset: const Offset(2, 2),
             blurRadius: 3,
           ),

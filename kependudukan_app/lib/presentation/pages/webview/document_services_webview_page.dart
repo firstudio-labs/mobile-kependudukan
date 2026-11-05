@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
@@ -12,6 +13,7 @@ import 'package:ladimas/presentation/pages/home/penduduk_home_page.dart';
 import 'package:ladimas/presentation/pages/tagihan/tagihan_page.dart';
 import 'package:ladimas/presentation/pages/profil_desa/profil_desa_page.dart';
 import 'package:ladimas/presentation/pages/riwayat-surat/riwayat_surat_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 
 class DocumentServicesWebViewPage extends StatefulWidget {
   final Penduduk? penduduk;
@@ -234,14 +236,23 @@ class _DocumentServicesWebViewPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // title: const Text('Layanan Surat'),
-        // backgroundColor: const Color(0xFF4A47DC),
-        foregroundColor: const Color(0xFF4A47DC),
+        title: const Text(
+          'Layanan Surat',
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.history),
+            icon: const Icon(Icons.history, color: AppTheme.primaryColor),
             onPressed: () {
               Navigator.push(
                 context,
@@ -296,27 +307,17 @@ class _DocumentServicesWebViewPageState
                   ),
               ],
             ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: const Color(0xFF4A47DC),
-        unselectedItemColor: Colors.grey,
+      bottomNavigationBar: AppBottomNavBar(
         currentIndex: 5, // Portal Layanan Desa
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.storefront_sharp, size: 28), label: 'Warungku'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance, size: 28),
-              label: 'Profil Desa'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.description, size: 28), label: 'Portal'),
+        items: [
+          AppBottomNavBar.item(icon: Icons.home_outlined, label: 'Beranda'),
+          AppBottomNavBar.item(icon: Icons.storefront, label: 'Warungku'),
+          AppBottomNavBar.item(
+              icon: Icons.grid_view_outlined, label: 'Informasi'),
+          AppBottomNavBar.item(
+              icon: Icons.account_balance_outlined, label: 'Profil Desa'),
+          AppBottomNavBar.item(icon: Icons.receipt_long_outlined, label: 'Tagihan'),
+          AppBottomNavBar.item(icon: Icons.description, label: 'Portal'),
         ],
         onTap: (index) {
           // Get penduduk data from widget

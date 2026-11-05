@@ -89,10 +89,15 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
   Future<void> _loadProvinces() async {
     try {
       final headers = await _authHeaders();
-      final resp = await http.get(Uri.parse('${AppConstants.authApiUrl}/user/warungku/wilayah/provinces'), headers: headers);
+      final resp = await http.get(
+          Uri.parse(
+              '${AppConstants.authApiUrl}/user/warungku/wilayah/provinces'),
+          headers: headers);
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
-        if (mounted) setState(() => _provinces = List<Map<String, dynamic>>.from(data['data']));
+        if (mounted)
+          setState(
+              () => _provinces = List<Map<String, dynamic>>.from(data['data']));
       }
     } catch (_) {}
   }
@@ -100,10 +105,15 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
   Future<void> _loadDistricts(String code) async {
     try {
       final head = await _authHeaders();
-      final res = await http.get(Uri.parse('${AppConstants.authApiUrl}/user/warungku/wilayah/districts/$code'), headers: head);
+      final res = await http.get(
+          Uri.parse(
+              '${AppConstants.authApiUrl}/user/warungku/wilayah/districts/$code'),
+          headers: head);
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
-        if (mounted) setState(() => _districts = List<Map<String, dynamic>>.from(data['data']));
+        if (mounted)
+          setState(
+              () => _districts = List<Map<String, dynamic>>.from(data['data']));
       }
     } catch (_) {}
   }
@@ -111,10 +121,15 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
   Future<void> _loadSubDistricts(String code) async {
     try {
       final head = await _authHeaders();
-      final res = await http.get(Uri.parse('${AppConstants.authApiUrl}/user/warungku/wilayah/sub-districts/$code'), headers: head);
+      final res = await http.get(
+          Uri.parse(
+              '${AppConstants.authApiUrl}/user/warungku/wilayah/sub-districts/$code'),
+          headers: head);
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
-        if (mounted) setState(() => _subDistricts = List<Map<String, dynamic>>.from(data['data']));
+        if (mounted)
+          setState(() =>
+              _subDistricts = List<Map<String, dynamic>>.from(data['data']));
       }
     } catch (_) {}
   }
@@ -122,10 +137,15 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
   Future<void> _loadVillages(String code) async {
     try {
       final head = await _authHeaders();
-      final res = await http.get(Uri.parse('${AppConstants.authApiUrl}/user/warungku/wilayah/villages/$code'), headers: head);
+      final res = await http.get(
+          Uri.parse(
+              '${AppConstants.authApiUrl}/user/warungku/wilayah/villages/$code'),
+          headers: head);
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
-        if (mounted) setState(() => _villages = List<Map<String, dynamic>>.from(data['data']));
+        if (mounted)
+          setState(
+              () => _villages = List<Map<String, dynamic>>.from(data['data']));
       }
     } catch (_) {}
   }
@@ -184,8 +204,9 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
 
       // Ambil tag_lokasi dari user data (format: "lat,lng")
       final tagLokasi = userData['tag_lokasi']?.toString() ?? '';
-      print('🗺️  [Domisili] Tag lokasi from storage: ${tagLokasi.isNotEmpty ? tagLokasi : "EMPTY"}');
-      
+      print(
+          '🗺️  [Domisili] Tag lokasi from storage: ${tagLokasi.isNotEmpty ? tagLokasi : "EMPTY"}');
+
       final provinceIdStr = userData['province_id']?.toString() ?? '';
       final districtIdStr = userData['district_id']?.toString() ?? '';
       final subDistrictIdStr = userData['sub_district_id']?.toString() ?? '';
@@ -198,22 +219,23 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
             _addressController.text = alamat;
             if (provinceIdStr.isNotEmpty) _provinceId = _toInt(provinceIdStr);
             if (districtIdStr.isNotEmpty) _districtId = _toInt(districtIdStr);
-            if (subDistrictIdStr.isNotEmpty) _subDistrictId = _toInt(subDistrictIdStr);
+            if (subDistrictIdStr.isNotEmpty)
+              _subDistrictId = _toInt(subDistrictIdStr);
             if (villageIdStr.isNotEmpty) _villageId = _toInt(villageIdStr);
           });
           print('✅ [Domisili] Alamat set to controller: $alamat');
-          
+
           if (_provinceId != null) {
-              final pCode = _getCodeById(_provinces, _provinceId);
-              if (pCode != null) await _loadDistricts(pCode);
-              if (_districtId != null) {
-                  final dCode = _getCodeById(_districts, _districtId);
-                  if (dCode != null) await _loadSubDistricts(dCode);
-                  if (_subDistrictId != null) {
-                      final sCode = _getCodeById(_subDistricts, _subDistrictId);
-                      if (sCode != null) await _loadVillages(sCode);
-                  }
+            final pCode = _getCodeById(_provinces, _provinceId);
+            if (pCode != null) await _loadDistricts(pCode);
+            if (_districtId != null) {
+              final dCode = _getCodeById(_districts, _districtId);
+              if (dCode != null) await _loadSubDistricts(dCode);
+              if (_subDistrictId != null) {
+                final sCode = _getCodeById(_subDistricts, _subDistrictId);
+                if (sCode != null) await _loadVillages(sCode);
               }
+            }
           }
         }
       } else {
@@ -764,9 +786,10 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
           );
 
           if (mounted) {
-            final String msg = responseData['message'] ?? 'Lokasi domisili keluarga berhasil diperbarui';
+            final String msg = responseData['message'] ??
+                'Lokasi domisili keluarga berhasil diperbarui';
             final bool isPending = responseData['is_pending_alert'] == true;
-            
+
             if (isPending) {
               MessageService.showInfoSnackBar(context, msg);
             } else {
@@ -841,20 +864,75 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
     _reverseGeocodeAndFill(center);
   }
 
+  Widget _buildLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1E293B),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.primaryColor,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
           'Lokasi Domisili',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: AppTheme.primaryColor,
+            size: 20,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon:
+                const Icon(Icons.refresh_rounded, color: AppTheme.primaryColor),
             onPressed: () => _loadData(forceRefresh: true),
             tooltip: 'Refresh',
           ),
@@ -933,8 +1011,7 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
                 _villageId = null;
               });
             }
-          }
- else if (state is DomisiliError) {
+          } else if (state is DomisiliError) {
             MessageService.showErrorSnackBar(context, state.message);
           }
         },
@@ -943,17 +1020,28 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
           if (_errorMessage != null) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline,
-                        size: 60, color: Colors.red),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFEE2E2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.error_outline_rounded,
+                          size: 48, color: Color(0xFFDC2626)),
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       _errorMessage!,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF1E293B),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
@@ -964,6 +1052,15 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
                         });
                         _loadKKData();
                       },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                      ),
                       child: const Text('Coba Lagi'),
                     ),
                   ],
@@ -980,7 +1077,10 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
                 children: [
                   CircularProgressIndicator(color: AppTheme.primaryColor),
                   SizedBox(height: 16),
-                  Text('Sedang mengambil data ...'),
+                  Text(
+                    'Sedang mengambil data...',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                  ),
                 ],
               ),
             );
@@ -995,21 +1095,41 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
           if (state is DomisiliError && state is! DomisiliLoaded) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline,
-                        size: 60, color: Colors.red),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFEE2E2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.error_outline_rounded,
+                          size: 48, color: Color(0xFFDC2626)),
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       state.message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF1E293B),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () => _loadData(forceRefresh: true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                      ),
                       child: const Text('Coba Lagi'),
                     ),
                   ],
@@ -1028,93 +1148,134 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
               children: [
                 // User info card
                 if (member != null)
-                  Card(
+                  Container(
                     margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.person_rounded,
+                            color: AppTheme.primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const CircleAvatar(
-                                backgroundColor: AppTheme.primaryColor,
-                                child: Icon(Icons.person, color: Colors.white),
+                              Text(
+                                member.fullName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B),
+                                ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      member.fullName,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      'NIK: ${member.nik}',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'NIK: ${member.nik}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF64748B),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
 
-                const SizedBox(height: 16),
-
                 // Search Location Section
-                Card(
+                Container(
                   margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Cari Lokasi',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _searchLocationController,
-                                decoration: InputDecoration(
-                                  hintText:
-                                      'Masukkan alamat (contoh: Jl. Sudirman, Jakarta)',
-                                  prefixIcon: const Icon(Icons.search),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.grey.shade50,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader('CARI LOKASI'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchLocationController,
+                              style: const TextStyle(
+                                  fontSize: 14, color: Color(0xFF1E293B)),
+                              decoration: InputDecoration(
+                                hintText: 'Contoh: Jl. Sudirman, Jakarta',
+                                hintStyle: const TextStyle(
+                                    fontSize: 14, color: Color(0xFF94A3B8)),
+                                prefixIcon: const Icon(Icons.search_rounded,
+                                    color: Color(0xFF64748B), size: 20),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 14),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
-                                onSubmitted: (_) => _searchLocation(),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
+                                ),
+                                focusedBorder: const OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(10)),
+                                  borderSide: BorderSide(
+                                      color: AppTheme.primaryColor, width: 1.5),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
                               ),
+                              onSubmitted: (_) => _searchLocation(),
                             ),
-                            const SizedBox(width: 8),
-                            ElevatedButton.icon(
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            height: 48,
+                            child: ElevatedButton.icon(
                               onPressed: _isSearching ? null : _searchLocation,
                               icon: _isSearching
                                   ? const SizedBox(
@@ -1125,285 +1286,358 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Icon(Icons.search),
+                                  : const Icon(Icons.search_rounded, size: 18),
                               label: Text(_isSearching ? 'Mencari...' : 'Cari'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _useCurrentLocation,
-                                icon: const Icon(Icons.my_location),
-                                label: const Text('Gunakan GPS'),
-                                style: OutlinedButton.styleFrom(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton.icon(
+                          onPressed: _useCurrentLocation,
+                          icon: const Icon(Icons.my_location_rounded,
+                              size: 18, color: AppTheme.primaryColor),
+                          label: const Text(
+                            'Gunakan Lokasi GPS Saat Ini',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryColor,
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Wilayah Input
-                Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Data Wilayah',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        _dropdownWilayah('Provinsi', _provinces, _provinceId, (value) async {
-                          setState(() {
-                            _provinceId = value;
-                            _districtId = null;
-                            _subDistrictId = null;
-                            _villageId = null;
-                            _districts = [];
-                            _subDistricts = [];
-                            _villages = [];
-                          });
-                          if (value != null) {
-                            final code = _getCodeById(_provinces, value);
-                            if (code != null) await _loadDistricts(code);
-                          }
-                        }),
-                        const SizedBox(height: 12),
-                        _dropdownWilayah('Kabupaten/Kota', _districts, _districtId, (value) async {
-                          setState(() {
-                            _districtId = value;
-                            _subDistrictId = null;
-                            _villageId = null;
-                            _subDistricts = [];
-                            _villages = [];
-                          });
-                          if (value != null) {
-                            final code = _getCodeById(_districts, value);
-                            if (code != null) await _loadSubDistricts(code);
-                          }
-                        }),
-                        const SizedBox(height: 12),
-                        _dropdownWilayah('Kecamatan', _subDistricts, _subDistrictId, (value) async {
-                          setState(() {
-                            _subDistrictId = value;
-                            _villageId = null;
-                            _villages = [];
-                          });
-                          if (value != null) {
-                            final code = _getCodeById(_subDistricts, value);
-                            if (code != null) await _loadVillages(code);
-                          }
-                        }),
-                        const SizedBox(height: 12),
-                        _dropdownWilayah('Desa', _villages, _villageId, (value) {
-                          setState(() {
-                            _villageId = value;
-                          });
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Address Input
-                Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Alamat Domisili',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _addressController,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                            hintText: 'Masukkan alamat lengkap domisili Anda',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFC7D2FE)),
+                            backgroundColor: const Color(0xFFEEF2FF),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
 
-                // Map title
-                const Text(
-                  'Pilih Lokasi pada Peta',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Map component
+                // Wilayah Input Card
                 Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(20.0),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Stack(
-                      children: [
-                        LocationMapComponent(
-                          initialPosition: _currentPosition,
-                          mode: MapMode.select,
-                          onLocationSelected: _onLocationSelected,
-                          mapController: _mapController,
-                          showCurrentMarker: false,
-                        ),
-                        // Custom marker overlay
-                        Positioned(
-                          left: MediaQuery.of(context).size.width * 0.5 - 20,
-                          top: 150 - 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              MessageService.showInfoSnackBar(
-                                context,
-                                'Lokasi yang dipilih: ${_currentPosition.latitude.toStringAsFixed(6)}, ${_currentPosition.longitude.toStringAsFixed(6)}',
-                              );
-                            },
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor,
-                                shape: BoxShape.circle,
-                                border:
-                                    Border.all(color: Colors.white, width: 2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader('DATA WILAYAH'),
+                      _dropdownWilayah('Provinsi', _provinces, _provinceId,
+                          (value) async {
+                        setState(() {
+                          _provinceId = value;
+                          _districtId = null;
+                          _subDistrictId = null;
+                          _villageId = null;
+                          _districts = [];
+                          _subDistricts = [];
+                          _villages = [];
+                        });
+                        if (value != null) {
+                          final code = _getCodeById(_provinces, value);
+                          if (code != null) await _loadDistricts(code);
+                        }
+                      }),
+                      const SizedBox(height: 16),
+                      _dropdownWilayah(
+                          'Kabupaten/Kota', _districts, _districtId,
+                          (value) async {
+                        setState(() {
+                          _districtId = value;
+                          _subDistrictId = null;
+                          _villageId = null;
+                          _subDistricts = [];
+                          _villages = [];
+                        });
+                        if (value != null) {
+                          final code = _getCodeById(_districts, value);
+                          if (code != null) await _loadSubDistricts(code);
+                        }
+                      }),
+                      const SizedBox(height: 16),
+                      _dropdownWilayah(
+                          'Kecamatan', _subDistricts, _subDistrictId,
+                          (value) async {
+                        setState(() {
+                          _subDistrictId = value;
+                          _villageId = null;
+                          _villages = [];
+                        });
+                        if (value != null) {
+                          final code = _getCodeById(_subDistricts, value);
+                          if (code != null) await _loadVillages(code);
+                        }
+                      }),
+                      const SizedBox(height: 16),
+                      _dropdownWilayah('Desa/Kelurahan', _villages, _villageId,
+                          (value) {
+                        setState(() {
+                          _villageId = value;
+                        });
+                      }),
+                    ],
                   ),
                 ),
 
-                const SizedBox(height: 16),
-
-                // Coordinate Display
-                Card(
+                // Address Input Card
+                Container(
                   margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Koordinat Lokasi',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader('ALAMAT DOMISILI'),
+                      _buildLabel('Alamat Lengkap'),
+                      TextField(
+                        controller: _addressController,
+                        maxLines: 3,
+                        style: const TextStyle(
+                            fontSize: 14, color: Color(0xFF1E293B)),
+                        decoration: InputDecoration(
+                          hintText: 'Masukkan alamat lengkap domisili Anda',
+                          hintStyle: const TextStyle(
+                              fontSize: 14, color: Color(0xFF94A3B8)),
+                          contentPadding: const EdgeInsets.all(16),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
                           ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                            borderSide: BorderSide(
+                                color: AppTheme.primaryColor, width: 1.5),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _latitudeController,
-                                readOnly: true,
-                                decoration: InputDecoration(
-                                  labelText: 'Latitude',
-                                  prefixIcon: const Icon(Icons.location_on),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Map & Coordinates Card
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader('PILIH LOKASI PADA PETA'),
+                      Container(
+                        height: 280,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Stack(
+                            children: [
+                              LocationMapComponent(
+                                initialPosition: _currentPosition,
+                                mode: MapMode.select,
+                                onLocationSelected: _onLocationSelected,
+                                mapController: _mapController,
+                                showCurrentMarker: false,
+                              ),
+                              Positioned(
+                                left: MediaQuery.of(context).size.width * 0.5 -
+                                    40,
+                                top: 140 - 20,
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: Colors.white, width: 2.5),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.25),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
                                   ),
-                                  filled: true,
-                                  fillColor: Colors.grey.shade100,
+                                  child: const Icon(
+                                    Icons.location_on_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: _longitudeController,
-                                readOnly: true,
-                                decoration: InputDecoration(
-                                  labelText: 'Longitude',
-                                  prefixIcon: const Icon(Icons.location_on),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel('Latitude'),
+                                TextField(
+                                  controller: _latitudeController,
+                                  readOnly: true,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
                                   ),
-                                  filled: true,
-                                  fillColor: Colors.grey.shade100,
+                                  decoration: InputDecoration(
+                                    prefixIcon: const Icon(
+                                        Icons.pin_drop_outlined,
+                                        size: 18,
+                                        color: Color(0xFF64748B)),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 12),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide:
+                                          BorderSide(color: Colors.grey[200]!),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide:
+                                          BorderSide(color: Colors.grey[200]!),
+                                    ),
+                                    filled: true,
+                                    fillColor: const Color(0xFFF8FAFC),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel('Longitude'),
+                                TextField(
+                                  controller: _longitudeController,
+                                  readOnly: true,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
+                                  ),
+                                  decoration: InputDecoration(
+                                    prefixIcon: const Icon(
+                                        Icons.pin_drop_outlined,
+                                        size: 18,
+                                        color: Color(0xFF64748B)),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 12),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide:
+                                          BorderSide(color: Colors.grey[200]!),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide:
+                                          BorderSide(color: Colors.grey[200]!),
+                                    ),
+                                    filled: true,
+                                    fillColor: const Color(0xFFF8FAFC),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFC7D2FE)),
+                        ),
+                        child: const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline_rounded,
+                                color: Color(0xFF4338CA), size: 18),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Koordinat akan otomatis terupdate saat Anda menggeser peta atau mencari alamat',
+                                style: TextStyle(
+                                  color: Color(0xFF4338CA),
+                                  fontSize: 12,
+                                  height: 1.4,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Koordinat akan otomatis terupdate saat Anda memilih lokasi pada peta atau mencari alamat',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1412,14 +1646,17 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
         },
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
         decoration: BoxDecoration(
           color: Colors.white,
+          border: const Border(
+            top: BorderSide(color: Color(0xFFE2E8F0)),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
-              offset: const Offset(0, -5),
+              offset: const Offset(0, -4),
             ),
           ],
         ),
@@ -1431,26 +1668,29 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
               onPressed: _isSaving ? null : _saveLocation,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
-                disabledBackgroundColor: Colors.grey.shade400,
+                disabledBackgroundColor: const Color(0xFFA5B4FC),
+                elevation: 2,
+                shadowColor: AppTheme.primaryColor.withValues(alpha: 0.4),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: _isSaving
                   ? const SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(
                         color: Colors.white,
-                        strokeWidth: 2,
+                        strokeWidth: 2.5,
                       ),
                     )
                   : const Text(
                       'KIRIM PERMINTAAN PERUBAHAN',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         color: Colors.white,
+                        letterSpacing: 0.5,
                       ),
                     ),
             ),
@@ -1460,36 +1700,77 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
     );
   }
 
-  Widget _dropdownWilayah(String label, List<Map<String, dynamic>> items, int? value, Function(int?)? onChanged) {
+  Widget _dropdownWilayah(String label, List<Map<String, dynamic>> items,
+      int? value, Function(int?)? onChanged) {
     // Normalisasi id
     final Set<int> seen = {};
-    final normalized = items.map((e) => {
-      'id': _toInt(e['id']) ?? _toInt(e['code']) ?? _toInt(e['value']),
-      'label': (e['name'] ?? e['label'] ?? e['text'] ?? '').toString(),
-    }).where((e) => e['id'] != null).where((e) => seen.add(e['id'] as int)).toList();
-    
+    final normalized = items
+        .map((e) => {
+              'id': _toInt(e['id']) ?? _toInt(e['code']) ?? _toInt(e['value']),
+              'label': (e['name'] ?? e['label'] ?? e['text'] ?? '').toString(),
+            })
+        .where((e) => e['id'] != null)
+        .where((e) => seen.add(e['id'] as int))
+        .toList();
+
     final ids = normalized.map<int>((e) => e['id'] as int).toSet();
-    final int? safeValue = (value != null && ids.contains(value)) ? value : null;
-    
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Colors.grey.shade50,
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
+    final int? safeValue =
+        (value != null && ids.contains(value)) ? value : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(label),
+        DropdownButtonFormField<int>(
           isExpanded: true,
           value: safeValue,
-          hint: const Text('Pilih'),
-          items: normalized.map((e) => DropdownMenuItem<int>(
-            value: e['id'] as int,
-            child: Text(e['label'] as String),
-          )).toList(),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: Color(0xFF64748B),
+            size: 20,
+          ),
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          menuMaxHeight: 300,
+          hint: Text(
+            'Pilih $label...',
+            style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+          ),
+          decoration: InputDecoration(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+          items: normalized
+              .map((e) => DropdownMenuItem<int>(
+                    value: e['id'] as int,
+                    child: Text(
+                      e['label'] as String,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ))
+              .toList(),
           onChanged: onChanged,
         ),
-      ),
+      ],
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
 import 'package:ladimas/presentation/pages/warungku/warungku_page.dart';
@@ -8,6 +9,7 @@ import 'package:ladimas/presentation/pages/profil_desa/profil_desa_page.dart';
 import 'package:ladimas/data/models/tagihan_model.dart';
 import 'package:ladimas/data/services/tagihan_service.dart';
 import 'package:ladimas/presentation/pages/tagihan/tagihan_detail_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 
 class TagihanPage extends StatefulWidget {
   final Penduduk penduduk;
@@ -26,7 +28,7 @@ class _TagihanPageState extends State<TagihanPage> {
     'Lunas',
     'Jatuh Tempo'
   ];
-  bool _showFilters = false; // State untuk mengontrol visibility filter
+  bool _showFilters = false;
 
   TagihanService? _tagihanService;
   List<TagihanModel> _tagihanList = [];
@@ -91,12 +93,10 @@ class _TagihanPageState extends State<TagihanPage> {
 
           switch (_selectedFilter) {
             case 'Belum Lunas':
-              // Tagihan yang belum lunas (tidak peduli sudah overdue atau belum)
               return !isLunas;
             case 'Lunas':
               return isLunas;
             case 'Jatuh Tempo':
-              // Tagihan yang sudah melewati tanggal jatuh tempo DAN belum lunas
               return isOverdue && !isLunas;
             default:
               return true;
@@ -104,18 +104,25 @@ class _TagihanPageState extends State<TagihanPage> {
         }).toList();
       }
 
-      setState(() {
-        _tagihanList = filteredList;
-        _calculateSummary();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _tagihanList = filteredList;
+          _calculateSummary();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         if (showErrorDialog) {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Gagal Memuat Data'),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Text(
+                'Gagal Memuat Data',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               content: const Text(
                   'Tidak dapat memuat data. Periksa koneksi internet Anda.'),
               actions: [
@@ -127,7 +134,6 @@ class _TagihanPageState extends State<TagihanPage> {
             ),
           );
         } else {
-          // Untuk refresh, tampilkan snackbar error
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -137,44 +143,42 @@ class _TagihanPageState extends State<TagihanPage> {
             ),
           );
         }
+        setState(() {
+          _isLoading = false;
+        });
       }
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
   Future<void> _refreshData() async {
     try {
       await _loadTagihan(showErrorDialog: false);
-      // Tampilkan snackbar sukses jika berhasil refresh
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Data tagihan berhasil diperbarui'),
-            backgroundColor: Colors.green,
+            backgroundColor: Color(0xFF059669),
             duration: Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
-      // Tampilkan alert error yang lebih jelas
       if (mounted) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: const Text(
               'Gagal Memperbarui Data',
               style: TextStyle(
-                color: Colors.red,
+                color: Color(0xFFDC2626),
                 fontWeight: FontWeight.bold,
               ),
             ),
             content: const Text(
               'Tidak dapat memperbarui data tagihan terbaru. '
-              'Pastikan koneksi internet Anda stabil dan coba lagi. '
-              'Jika masalah berlanjut, hubungi administrator.',
-              textAlign: TextAlign.left,
+              'Pastikan koneksi internet Anda stabil dan coba lagi.',
             ),
             actions: [
               TextButton(
@@ -184,11 +188,15 @@ class _TagihanPageState extends State<TagihanPage> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  _refreshData(); // Coba lagi
+                  _refreshData();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A47DC),
+                  backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: const Text('Coba Lagi'),
               ),
@@ -202,17 +210,19 @@ class _TagihanPageState extends State<TagihanPage> {
   Future<void> _loadKategori() async {
     try {
       final res = await _tagihanService!.getKategoriTagihan();
-      setState(() {
-        _kategoriList = res.data;
-        // Reset sub kategori jika kategori berubah
-        _updateSubKategoriOptions();
-      });
+      if (mounted) {
+        setState(() {
+          _kategoriList = res.data;
+          _updateSubKategoriOptions();
+        });
+      }
     } catch (_) {
-      // Biarkan kosong jika gagal
-      setState(() {
-        _kategoriList = [];
-        _subKategoriList = [];
-      });
+      if (mounted) {
+        setState(() {
+          _kategoriList = [];
+          _subKategoriList = [];
+        });
+      }
     }
   }
 
@@ -303,66 +313,52 @@ class _TagihanPageState extends State<TagihanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text(
+          'Tagihan',
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => setState(() => _showFilters = !_showFilters),
+          icon: Icon(
+            _showFilters
+                ? Icons.filter_list_off_rounded
+                : Icons.filter_list_rounded,
+            color: _showFilters ? AppTheme.primaryColor : AppTheme.primaryColor,
+            size: 22,
+          ),
+          tooltip: _showFilters ? 'Sembunyikan Filter' : 'Tampilkan Filter',
+        ),
+        actions: [
+          IconButton(
+            onPressed: _refreshData,
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppTheme.primaryColor,
+              size: 22,
+            ),
+            tooltip: 'Refresh Data',
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
+        color: AppTheme.primaryColor,
         child: Column(
           children: [
-            // Header Section (tanpa AppBar, seragam dengan halaman lain)
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(color: Color(0xFFF5F6FA)),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                    20, MediaQuery.of(context).padding.top + 20, 20, 20),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () =>
-                          setState(() => _showFilters = !_showFilters),
-                      icon: Icon(
-                        _showFilters
-                            ? Icons.filter_list_off
-                            : Icons.filter_list,
-                        color: Color(0xFF4A47DC),
-                        size: 24,
-                      ),
-                      tooltip: _showFilters
-                          ? 'Sembunyikan Filter'
-                          : 'Tampilkan Filter',
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'Tagihan',
-                          style: TextStyle(
-                            color: Color(0xFF4A47DC),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _refreshData,
-                      icon: Icon(
-                        Icons.refresh,
-                        color: Color(0xFF4A47DC),
-                        size: 24,
-                      ),
-                      tooltip: 'Refresh Data',
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             // Filter Section - dengan animasi
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 250),
               transitionBuilder: (Widget child, Animation<double> animation) {
                 return SizeTransition(
                   sizeFactor: animation,
@@ -377,7 +373,7 @@ class _TagihanPageState extends State<TagihanPage> {
               child: _showFilters
                   ? Padding(
                       key: const ValueKey('filter_visible'),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.only(top: 0),
                       child: _buildFilterSection(),
                     )
                   : const SizedBox.shrink(key: ValueKey('filter_hidden')),
@@ -386,13 +382,14 @@ class _TagihanPageState extends State<TagihanPage> {
             // Content
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 14.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Summary Cards
                     _buildSummaryCards(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     // Bills List
                     Expanded(child: _buildBillsList()),
@@ -403,27 +400,18 @@ class _TagihanPageState extends State<TagihanPage> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: const Color(0xFF4A47DC),
-        unselectedItemColor: Colors.grey,
+      bottomNavigationBar: AppBottomNavBar(
         currentIndex: 4, // Tagihan
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.storefront_sharp, size: 28), label: 'Warungku'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance, size: 28),
-              label: 'Profil Desa'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.description, size: 28), label: 'Portal'),
+        items: [
+          AppBottomNavBar.item(icon: Icons.home_outlined, label: 'Beranda'),
+          AppBottomNavBar.item(icon: Icons.storefront, label: 'Warungku'),
+          AppBottomNavBar.item(
+              icon: Icons.grid_view_outlined, label: 'Informasi'),
+          AppBottomNavBar.item(
+              icon: Icons.account_balance_outlined, label: 'Profil Desa'),
+          AppBottomNavBar.item(icon: Icons.receipt_long, label: 'Tagihan'),
+          AppBottomNavBar.item(
+              icon: Icons.description_outlined, label: 'Portal'),
         ],
         onTap: (index) {
           switch (index) {
@@ -449,7 +437,7 @@ class _TagihanPageState extends State<TagihanPage> {
                 MaterialPageRoute(
                   builder: (_) => PendudukHomePage(
                     penduduk: widget.penduduk,
-                    initialTabIndex: 0, // Berita Desa tab
+                    initialTabIndex: 0,
                   ),
                 ),
               );
@@ -463,7 +451,6 @@ class _TagihanPageState extends State<TagihanPage> {
               );
               break;
             case 4:
-              // Current page - Tagihan
               break;
             case 5:
               Navigator.pushReplacement(
@@ -482,8 +469,13 @@ class _TagihanPageState extends State<TagihanPage> {
 
   Widget _buildFilterSection() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      color: Colors.transparent,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -491,37 +483,36 @@ class _TagihanPageState extends State<TagihanPage> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: [
-                ..._filters.map((filter) {
-                  final isSelected = _selectedFilter == filter;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => _onFilterChanged(filter),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
+              children: _filters.map((filter) {
+                final isSelected = _selectedFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => _onFilterChanged(filter),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppTheme.primaryColor
+                            : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        filter,
+                        style: TextStyle(
                           color: isSelected
-                              ? const Color(0xFF4A47DC)
-                              : const Color(0xFFEDEBFF),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          filter,
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : const Color(0xFF4A47DC),
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                          ),
+                              ? Colors.white
+                              : const Color(0xFF475569),
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 12,
                         ),
                       ),
                     ),
-                  );
-                }).toList(),
-              ],
+                  ),
+                );
+              }).toList(),
             ),
           ),
           const SizedBox(height: 12),
@@ -530,7 +521,6 @@ class _TagihanPageState extends State<TagihanPage> {
             builder: (context, constraints) {
               final isSmallScreen = constraints.maxWidth < 600;
               if (isSmallScreen) {
-                // Layout vertikal untuk layar kecil
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -566,15 +556,14 @@ class _TagihanPageState extends State<TagihanPage> {
                   ],
                 );
               } else {
-                // Layout horizontal untuk layar besar
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
                       _buildKategoriDropdown(),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       _buildSubKategoriDropdown(),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       _buildDateButton(
                           label: _startDate == null
                               ? 'Mulai'
@@ -612,17 +601,24 @@ class _TagihanPageState extends State<TagihanPage> {
         _loadTagihan();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFEBEE),
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFFFEE2E2),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.clear, size: 16, color: Colors.red),
-            SizedBox(width: 6),
-            Text('Reset', style: TextStyle(color: Colors.red, fontSize: 12)),
+            Icon(Icons.clear_rounded, size: 15, color: Color(0xFFDC2626)),
+            SizedBox(width: 4),
+            Text(
+              'Reset',
+              style: TextStyle(
+                color: Color(0xFFDC2626),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -632,33 +628,28 @@ class _TagihanPageState extends State<TagihanPage> {
   Widget _buildKategoriDropdown() {
     return Container(
       constraints: const BoxConstraints(minWidth: 100, maxWidth: 140),
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.category, size: 14, color: Color(0xFF4A47DC)),
-          const SizedBox(width: 2),
+          const Icon(Icons.category_outlined,
+              size: 14, color: AppTheme.primaryColor),
+          const SizedBox(width: 4),
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<int>(
                 value: _selectedKategoriId,
-                hint: const Text('Kategori', style: TextStyle(fontSize: 11)),
+                hint: const Text('Kategori',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 isDense: true,
                 isExpanded: true,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF333333)),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF1E293B)),
                 items: _kategoriList
                     .map((k) => DropdownMenuItem<int>(
                           value: k.id,
@@ -677,34 +668,28 @@ class _TagihanPageState extends State<TagihanPage> {
   Widget _buildSubKategoriDropdown() {
     return Container(
       constraints: const BoxConstraints(minWidth: 110, maxWidth: 150),
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.label, size: 14, color: Color(0xFF4A47DC)),
-          const SizedBox(width: 2),
+          const Icon(Icons.label_outline,
+              size: 14, color: AppTheme.primaryColor),
+          const SizedBox(width: 4),
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<int>(
                 value: _selectedSubKategoriId,
-                hint:
-                    const Text('Sub Kategori', style: TextStyle(fontSize: 11)),
+                hint: const Text('Sub Kategori',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 isDense: true,
                 isExpanded: true,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF333333)),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF1E293B)),
                 items: _subKategoriList
                     .map((s) => DropdownMenuItem<int>(
                           value: s.id,
@@ -726,25 +711,19 @@ class _TagihanPageState extends State<TagihanPage> {
       onTap: onTap,
       child: Container(
         constraints: const BoxConstraints(minWidth: 90, maxWidth: 130),
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.date_range, color: Color(0xFF4A47DC), size: 14),
-            const SizedBox(width: 2),
+            const Icon(Icons.date_range_outlined,
+                color: AppTheme.primaryColor, size: 14),
+            const SizedBox(width: 4),
             Expanded(
               child: Text(
                 label,
@@ -752,7 +731,7 @@ class _TagihanPageState extends State<TagihanPage> {
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF4A47DC),
+                  color: Color(0xFF1E293B),
                 ),
               ),
             ),
@@ -771,8 +750,9 @@ class _TagihanPageState extends State<TagihanPage> {
             amount: _tagihanService != null
                 ? _tagihanService!.formatNominal(_totalTagihan)
                 : 'Rp ${_totalTagihan.toStringAsFixed(0)}',
-            color: Colors.red,
-            icon: Icons.receipt_long,
+            color: const Color(0xFFDC2626),
+            iconBg: const Color(0xFFFEE2E2),
+            icon: Icons.receipt_long_rounded,
           ),
         ),
         const SizedBox(width: 12),
@@ -782,8 +762,9 @@ class _TagihanPageState extends State<TagihanPage> {
             amount: _tagihanService != null
                 ? _tagihanService!.formatNominal(_sudahLunas)
                 : 'Rp ${_sudahLunas.toStringAsFixed(0)}',
-            color: Colors.green,
-            icon: Icons.check_circle,
+            color: const Color(0xFF059669),
+            iconBg: const Color(0xFFD1FAE5),
+            icon: Icons.check_circle_outline_rounded,
           ),
         ),
       ],
@@ -794,19 +775,20 @@ class _TagihanPageState extends State<TagihanPage> {
     required String title,
     required String amount,
     required Color color,
+    required Color iconBg,
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Color(0x05000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -815,24 +797,32 @@ class _TagihanPageState extends State<TagihanPage> {
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 20),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF666666),
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             amount,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -846,7 +836,7 @@ class _TagihanPageState extends State<TagihanPage> {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A47DC)),
+          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
         ),
       );
     }
@@ -856,37 +846,50 @@ class _TagihanPageState extends State<TagihanPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Gagal memuat data tagihan',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF333333),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEE2E2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 32,
+                color: Color(0xFFDC2626),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
+            const Text(
+              'Gagal Memuat Data Tagihan',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 6),
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF666666),
+                fontSize: 13,
+                color: Color(0xFF64748B),
               ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: _loadTagihan,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Coba Lagi'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4A47DC),
+                backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              child: const Text('Coba Lagi'),
             ),
           ],
         ),
@@ -898,26 +901,34 @@ class _TagihanPageState extends State<TagihanPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.receipt_long_outlined,
-              size: 64,
-              color: Color(0xFF9E9E9E),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF1F5F9),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.receipt_long_outlined,
+                size: 36,
+                color: Color(0xFF94A3B8),
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
-              'Belum ada tagihan',
+              'Belum Ada Tagihan',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF333333),
+                color: Color(0xFF1E293B),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             const Text(
-              'Tagihan akan muncul di sini ketika tersedia',
+              'Tagihan akan tercatat di sini saat tersedia.',
               style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF666666),
+                fontSize: 13,
+                color: Color(0xFF64748B),
               ),
             ),
           ],
@@ -928,22 +939,36 @@ class _TagihanPageState extends State<TagihanPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Daftar Tagihan',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF333333),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Daftar Tagihan',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            Text(
+              '${_tagihanList.length} Tagihan',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         Expanded(
           child: ListView.builder(
+            physics: const BouncingScrollPhysics(),
             itemCount: _tagihanList.length,
             itemBuilder: (context, index) {
               final tagihan = _tagihanList[index];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: _buildBillItemFromModel(tagihan),
               );
             },
@@ -959,6 +984,8 @@ class _TagihanPageState extends State<TagihanPage> {
     required String dueDate,
     required String status,
     required Color statusColor,
+    required Color statusBgColor,
+    required IconData statusIcon,
     TagihanModel? tagihan,
   }) {
     return GestureDetector(
@@ -968,16 +995,16 @@ class _TagihanPageState extends State<TagihanPage> {
         }
       },
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+          boxShadow: const [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Color(0x05000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
             ),
           ],
         ),
@@ -985,58 +1012,88 @@ class _TagihanPageState extends State<TagihanPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF333333),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: statusBgColor,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    status,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: statusColor,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 12, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        status,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  amount,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF4A47DC),
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Nominal',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      amount,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  'Jatuh Tempo: $dueDate',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF666666),
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.event_outlined,
+                      size: 13,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tempo: $dueDate',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -1058,23 +1115,30 @@ class _TagihanPageState extends State<TagihanPage> {
     // Determine status based on date and API status
     String status;
     Color color;
+    Color bgColor;
+    IconData icon;
 
     if (tagihan.status.toLowerCase() == 'lunas' ||
         tagihan.status.toLowerCase() == 'sudah_bayar') {
       status = 'Lunas';
-      color = Colors.green;
+      color = const Color(0xFF059669);
+      bgColor = const Color(0xFFD1FAE5);
+      icon = Icons.check_circle_rounded;
     } else {
-      // Check if tagihan is overdue
       final DateTime today = DateTime.now();
       final DateTime tagihanDate = DateTime.parse(tagihan.tanggal);
       final bool isOverdue = tagihanDate.isBefore(today);
 
       if (isOverdue) {
         status = 'Jatuh Tempo';
-        color = Colors.orange;
+        color = const Color(0xFFD97706);
+        bgColor = const Color(0xFFFEF3C7);
+        icon = Icons.warning_amber_rounded;
       } else {
         status = 'Belum Lunas';
-        color = Colors.red;
+        color = const Color(0xFFDC2626);
+        bgColor = const Color(0xFFFEE2E2);
+        icon = Icons.error_outline_rounded;
       }
     }
 
@@ -1084,97 +1148,18 @@ class _TagihanPageState extends State<TagihanPage> {
       dueDate: dueDate,
       status: status,
       statusColor: color,
+      statusBgColor: bgColor,
+      statusIcon: icon,
       tagihan: tagihan,
     );
   }
 
   void _navigateToDetail(TagihanModel tagihan) {
-    // TODO: Implement navigation to detail page
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
             TagihanDetailPage(tagihan: tagihan, penduduk: widget.penduduk),
-      ),
-    );
-  }
-
-  void _showPaymentDialog(String title, String amount) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Konfirmasi Pembayaran',
-          style: TextStyle(
-            color: Color(0xFF4A47DC),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Tagihan: $title'),
-            const SizedBox(height: 8),
-            Text('Jumlah: $amount'),
-            const SizedBox(height: 16),
-            const Text(
-              'Pilih metode pembayaran:',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 12),
-            _buildPaymentMethod('Transfer Bank', Icons.account_balance),
-            const SizedBox(height: 8),
-            _buildPaymentMethod('E-Wallet', Icons.phone_android),
-            const SizedBox(height: 8),
-            _buildPaymentMethod('Tunai', Icons.money),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('BATAL'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Pembayaran berhasil diproses'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4A47DC),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('BAYAR'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentMethod(String method, IconData icon) {
-    return GestureDetector(
-      onTap: () {
-        // TODO: Handle payment method selection
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: const Color(0xFF4A47DC)),
-            const SizedBox(width: 12),
-            Text(method),
-          ],
-        ),
       ),
     );
   }

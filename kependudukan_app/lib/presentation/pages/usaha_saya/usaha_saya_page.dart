@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
 import 'package:ladimas/presentation/pages/home/penduduk_home_page.dart';
@@ -31,17 +32,12 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _items = [];
   bool _changed = false;
-  final Map<String, bool> _miniPressed = {'Tambah': false};
 
-  // Check if user has business information
   Future<bool> _hasBusinessInformation() async {
     try {
       final token = await AuthLocalStorage().getStoredToken();
-      if (token == null || token.isEmpty) {
-        return false;
-      }
+      if (token == null || token.isEmpty) return false;
 
-      // Some tokens have format "id|token"
       final actualToken = token.contains('|') ? token.split('|')[1] : token;
 
       final response = await http.get(
@@ -61,13 +57,11 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
               data['informasi_usaha'] as Map<String, dynamic>?;
 
           if (informasiUsaha != null) {
-            // Check if any business information fields are filled
             final namaUsaha = informasiUsaha['nama_usaha']?.toString() ?? '';
             final alamatUsaha = informasiUsaha['alamat']?.toString() ?? '';
             final kelompokUsaha =
                 informasiUsaha['kelompok_usaha']?.toString() ?? '';
 
-            // Return true if any of the business fields are filled
             return namaUsaha.isNotEmpty ||
                 alamatUsaha.isNotEmpty ||
                 kelompokUsaha.isNotEmpty;
@@ -76,7 +70,6 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
       }
       return false;
     } catch (e) {
-      print('Error checking business information: $e');
       return false;
     }
   }
@@ -84,17 +77,14 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
   @override
   void initState() {
     super.initState();
-    // Check business information before loading items
     _checkBusinessInformationAndLoadItems();
   }
 
   Future<void> _checkBusinessInformationAndLoadItems() async {
     final hasBusinessInfo = await _hasBusinessInformation();
     if (!hasBusinessInfo) {
-      // Show dialog to inform user about missing business information
       _showBusinessInfoMissingDialog();
     } else {
-      // Business info exists, load items normally
       _loadItems();
     }
   }
@@ -102,7 +92,7 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
   void _showBusinessInfoMissingDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent dismissing by tapping outside
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -111,7 +101,7 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
           title: const Text(
             'Informasi Usaha Belum Lengkap',
             style: TextStyle(
-              color: Color(0xFF4A47DC),
+              color: Color(0xFF2C3259),
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -122,12 +112,11 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                // Navigate to profile edit page to add business information
+                Navigator.of(context).pop();
                 _navigateToProfileEditPage();
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF4A47DC),
+                foregroundColor: const Color(0xFF2C3259),
               ),
               child: const Text(
                 'LENGKAPI',
@@ -136,8 +125,7 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                // Simply return to previous page
+                Navigator.of(context).pop();
                 Navigator.of(context).pop();
               },
               style: TextButton.styleFrom(
@@ -161,9 +149,7 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
         builder: (_) => ProfileEditPage(penduduk: widget.penduduk),
       ),
     ).then((result) {
-      // After returning from profile edit, check again if business info exists
       if (result == true && mounted) {
-        // Refresh the business information check
         _checkBusinessInformationAndLoadItems();
       }
     });
@@ -188,52 +174,101 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
     }
   }
 
+  Future<void> _deleteProduct(int productId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Produk'),
+        content: const Text('Apakah Anda yakin ingin menghapus produk ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _api.deleteProduct(productId);
+        _changed = true;
+        _loadItems();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Produk berhasil dihapus')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal menghapus produk: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  void _navigateToEditProduct(Map<String, dynamic> productMap) {
+    final id = productMap['id'];
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UbahProdukPage(
+          penduduk: widget.penduduk,
+          productId: id,
+          productData: productMap,
+        ),
+      ),
+    ).then((result) {
+      if (result == true) {
+        _changed = true;
+        _loadItems();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) {
-        if (didPop) {
-          return;
-        }
+        if (didPop) return;
         Navigator.pop(context, _changed);
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F6FA),
+        backgroundColor: const Color(0xFFF8F9FD),
         appBar: AppBar(
-          backgroundColor: const Color(0xFFF5F6FA),
+          title: const Text(
+            'Semua Produk Saya',
+            style: TextStyle(
+              color: AppTheme.primaryColor,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           elevation: 0,
-          centerTitle: false,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF4A47DC)),
-            onPressed: () {
-              Navigator.pop(context, _changed);
-            },
+            icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Title like Warungku
-              const Padding(
-                padding: EdgeInsets.fromLTRB(0, 10, 0, 20),
-                child: Center(
-                  child: Text(
-                    'Usaha Saya',
-                    style: TextStyle(
-                      color: Color(0xFF4A47DC),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-              ),
-              // Search Section
               _buildSearchSection(),
-
-              // Product List
+              const SizedBox(height: 10),
               _isLoading
                   ? const Padding(
                       padding: EdgeInsets.only(top: 40),
@@ -243,137 +278,13 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
             ],
           ),
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          selectedItemColor: const Color(0xFF4A47DC),
-          unselectedItemColor: Colors.grey,
-          currentIndex: 1, // Usaha Saya
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.storefront_sharp, size: 28),
-                label: 'Usaha Saya'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.info_outline, size: 28), label: 'Portal'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.person_2, size: 28), label: 'Dataku'),
-          ],
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BerandaPage(penduduk: widget.penduduk),
-                  ),
-                );
-                break;
-              case 1:
-                // Current page - Usaha Saya
-                break;
-              case 2:
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PendudukHomePage(penduduk: widget.penduduk),
-                  ),
-                );
-                break;
-              case 3:
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TagihanPage(penduduk: widget.penduduk),
-                  ),
-                );
-                break;
-              case 4:
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        DocumentServicesWebViewPage(penduduk: widget.penduduk),
-                  ),
-                );
-                break;
-              case 5:
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DatakuPage(penduduk: widget.penduduk),
-                  ),
-                );
-                break;
-            }
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchSection() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Cari Produk',
-                  hintStyle: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 14,
-                  ),
-                  suffixIcon: Icon(
-                    Icons.search,
-                    color: Colors.grey[400],
-                    size: 20,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 15,
-                  ),
-                ),
-                onSubmitted: (value) async {
-                  final hasBusinessInfo = await _hasBusinessInformation();
-                  if (!hasBusinessInfo) {
-                    _showBusinessInfoMissingDialog();
-                    return;
-                  }
-                  _loadItems(search: value);
-                },
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          _buildMiniMenu(
-            icon: Icons.add_shopping_cart,
-            label: 'Tambah',
-            onTap: () async {
-              // Check if user has business information before allowing to add product
+        // Tombol Tambah Produk di Kanan Bawah
+        floatingActionButton: Container(
+          width: 56,
+          height: 56,
+          margin: const EdgeInsets.only(bottom: 12, right: 8),
+          child: FloatingActionButton(
+            onPressed: () async {
               final hasBusinessInfo = await _hasBusinessInformation();
               if (!hasBusinessInfo) {
                 _showBusinessInfoMissingDialog();
@@ -392,32 +303,63 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
                 }
               });
             },
+            backgroundColor: AppTheme.primaryColor,
+            elevation: 0,
+            shape: const CircleBorder(),
+            child: const Icon(
+              Icons.add,
+              color: Colors.white,
+              size: 30,
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildMiniMenu({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final bool isPressed = _miniPressed[label] == true;
-    final Color iconColor =
-        isPressed ? const Color(0xFF4A47DC) : (Colors.grey[700]!);
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _miniPressed[label] = true),
-      onTapUp: (_) => setState(() => _miniPressed[label] = false),
-      onTapCancel: () => setState(() => _miniPressed[label] = false),
-      onTap: onTap,
-      child: SizedBox(
-        width: 40,
-        child: Icon(
-          icon,
-          size: 28,
-          color: iconColor,
-        ),
+  Widget _buildSearchSection() {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF2C3259)),
+              decoration: const InputDecoration(
+                hintText: 'Cari Produk',
+                hintStyle: TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 14,
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onSubmitted: (value) async {
+                final hasBusinessInfo = await _hasBusinessInformation();
+                if (!hasBusinessInfo) {
+                  _showBusinessInfoMissingDialog();
+                  return;
+                }
+                _loadItems(search: value);
+              },
+            ),
+          ),
+          const Icon(
+            Icons.search,
+            color: Color(0xFF94A3B8),
+            size: 22,
+          ),
+        ],
       ),
     );
   }
@@ -451,7 +393,7 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
           }
         }
         final price = NumberFormat.currency(
-                locale: 'id_ID', symbol: 'Rp. ', decimalDigits: 0)
+                locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
             .format(hargaNum);
         final qty = item['stok'];
         int stokNum;
@@ -468,15 +410,25 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
         }
         final quantity = stokNum.toString();
         final imageUrl = item['foto_url'] ?? '';
+
+        final Map<String, dynamic> productDataMap = {
+          'id': id,
+          'name': name,
+          'description': description,
+          'price': price,
+          'harga': hargaNum,
+          'stock': quantity,
+          'stok': stokNum,
+          'imageUrl': imageUrl,
+        };
+
         return _buildProductCard(
           id: id,
           name: name,
-          description: description,
           price: price,
           quantity: quantity,
           imageUrl: imageUrl,
-          hargaRaw: hargaNum,
-          stokRaw: stokNum,
+          productDataMap: productDataMap,
         );
       }).toList(),
     );
@@ -485,149 +437,191 @@ class _UsahaSayaPageState extends State<UsahaSayaPage> {
   Widget _buildProductCard({
     required int id,
     required String name,
-    required String description,
     required String price,
     required String quantity,
+    required Map<String, dynamic> productDataMap,
     String? imageUrl,
-    int? hargaRaw,
-    int? stokRaw,
   }) {
-    return GestureDetector(
-      onTap: () {
-        // Navigate to Ubah Produk page with product data
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => UbahProdukPage(
-              penduduk: widget.penduduk,
-              productId: id,
-              productData: {
-                'id': id,
-                'name': name,
-                'description': description,
-                'price': price,
-                'harga': hargaRaw,
-                'stock': quantity,
-                'stok': stokRaw,
-                'imageUrl': imageUrl,
-              },
-            ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-        ).then((result) {
-          if (result == true) {
-            _changed = true;
-            _loadItems();
-          }
-        });
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.grey.withOpacity(0.2),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Product Image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                width: 80,
-                height: 80,
-                child: (imageUrl != null && imageUrl.isNotEmpty)
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: Icon(Icons.broken_image,
-                                size: 32, color: Colors.grey),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_outlined,
-                            size: 32,
-                            color: Colors.grey,
-                          ),
-                        ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Foto Produk
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: 72,
+              height: 72,
+              child: (imageUrl != null && imageUrl.isNotEmpty)
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey[100],
+                        child: const Icon(Icons.image_outlined,
+                            color: Colors.grey),
                       ),
-              ),
+                    )
+                  : Container(
+                      color: Colors.grey[100],
+                      child:
+                          const Icon(Icons.image_outlined, color: Colors.grey),
+                    ),
             ),
-            const SizedBox(width: 16),
-            // Product Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
+          ),
+          const SizedBox(width: 14),
+          // Detail Produk
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  price,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2C3259),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Stok: $quantity',
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ],
+            ),
+          ),
+          // Pop-up Menu Titik Tiga Modern
+          Theme(
+            data: Theme.of(context).copyWith(
+              cardColor: Colors.white,
+            ),
+            child: PopupMenuButton<String>(
+              color: AppTheme.backgroundColor,
+              elevation: 4,
+              shadowColor: Colors.black.withOpacity(0.15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FD),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.more_vert_rounded,
+                  color: Color(0xFF64748B),
+                  size: 20,
+                ),
+              ),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _navigateToEditProduct(productDataMap);
+                } else if (value == 'delete') {
+                  _deleteProduct(id);
+                }
+              },
+              itemBuilder: (BuildContext context) => [
+                PopupMenuItem<String>(
+                  value: 'edit',
+                  height: 40,
+                  child: Row(
                     children: [
-                      Text(
-                        price,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF4A47DC),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.edit_outlined,
+                          size: 16,
+                          color: Color(0xFF2C3259),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$quantity pcs',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Edit',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF1E293B),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                const PopupMenuDivider(height: 1),
+                PopupMenuItem<String>(
+                  value: 'delete',
+                  height: 40,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 16,
+                          color: Color(0xFFEF4444),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Hapus',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFFEF4444),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            // Arrow Icon
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.grey,
-              size: 16,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

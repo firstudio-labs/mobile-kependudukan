@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/presentation/pages/auth/login_page.dart';
 import 'package:ladimas/presentation/pages/auth/register_page.dart';
 import 'package:ladimas/presentation/widgets/custom_button.dart';
@@ -20,7 +21,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       'description':
           'Kelola data kependudukan Anda secara mudah dan cepat melalui aplikasi ini',
       'image': 'assets/app_icon_padded.png',
-      'color': const Color(0xFF4A47DC),
+      'color': AppTheme.primaryColor,
     },
     {
       'title': 'Akses Layanan Kapan Saja',
@@ -67,7 +68,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF4A47DC),
+      backgroundColor: AppTheme.primaryColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -153,7 +154,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         text: 'Daftar',
                         onPressed: _navigateToRegister,
                         backgroundColor: Colors.white,
-                        textColor: const Color(0xFF4A47DC),
+                        textColor: AppTheme.primaryColor,
                       ),
                     ],
                   ],
@@ -263,7 +264,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       width: _currentPage == index ? 24 : 8,
       decoration: BoxDecoration(
         color: _currentPage == index
-            ? const Color(0xFF4A47DC)
+            ? AppTheme.primaryColor
             : Colors.grey.shade300,
         borderRadius: BorderRadius.circular(4),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 
 class NotificationItem extends StatelessWidget {
   final String title;
@@ -39,7 +40,7 @@ class NotificationItem extends StatelessWidget {
               height: 8,
               margin: const EdgeInsets.only(top: 6),
               decoration: BoxDecoration(
-                color: isNew ? const Color(0xFF4A47DC) : Colors.transparent,
+                color: isNew ? AppTheme.primaryColor : Colors.transparent,
                 shape: BoxShape.circle,
               ),
             ),
