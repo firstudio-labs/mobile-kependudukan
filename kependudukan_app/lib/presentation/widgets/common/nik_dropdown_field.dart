@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:ladimas/core/services/message_service.dart';
 import 'package:http/http.dart' as http;
+import 'package:ladimas/core/theme/app_theme.dart';
 
 class NikDropdownField extends StatefulWidget {
   final TextEditingController nikController;
@@ -102,27 +103,63 @@ class _NikDropdownFieldState extends State<NikDropdownField> {
         .toList(); // Limit results to 5 for better UI
   }
 
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 2),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF475569),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildLabel('NIK Pemilik'),
         TextFormField(
           controller: widget.nikController,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
           decoration: InputDecoration(
-            labelText: 'NIK Pemilik',
-            hintText: 'Cari berdasarkan NIK atau nama',
-            prefixIcon: const Icon(Icons.credit_card),
+            hintText: 'Cari NIK atau nama pemilik...',
+            hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+            prefixIcon: const Icon(Icons.badge_outlined,
+                size: 20, color: Color(0xFF64748B)),
             suffixIcon: IconButton(
               icon: Icon(
-                  _showDropdown ? Icons.arrow_drop_up : Icons.arrow_drop_down),
+                _showDropdown
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                color: const Color(0xFF64748B),
+              ),
               onPressed: () {
                 setState(() {
                   _showDropdown = !_showDropdown;
                 });
               },
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
           validator: (value) => value!.isEmpty ? 'NIK harus diisi' : null,
           onChanged: (value) {
@@ -138,32 +175,65 @@ class _NikDropdownFieldState extends State<NikDropdownField> {
         ),
         if (_showDropdown && widget.nikController.text.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: 6),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              constraints: const BoxConstraints(maxHeight: 200),
+              constraints: const BoxConstraints(maxHeight: 220),
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      ),
+                    )
                   : _buildDropdownList(),
             ),
           ),
         const SizedBox(height: 16),
+        _buildLabel('Nama Pemilik'),
         TextFormField(
           controller: widget.nameController,
+          readOnly: true,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF334155),
+          ),
           decoration: InputDecoration(
-            labelText: 'Nama Pemilik',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            hintText: 'Nama otomatis terisi saat NIK dipilih',
+            hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+            prefixIcon: const Icon(Icons.person_outline_rounded,
+                size: 20, color: Color(0xFF64748B)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey[200]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey[200]!),
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
           validator: (value) =>
               value!.isEmpty ? 'Nama pemilik harus diisi' : null,
@@ -179,41 +249,60 @@ class _NikDropdownFieldState extends State<NikDropdownField> {
       return const Padding(
         padding: EdgeInsets.all(16.0),
         child: Center(
-          child: Text('Tidak ada data yang cocok'),
+          child: Text(
+            'Tidak ada data yang cocok',
+            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          ),
         ),
       );
     }
 
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      shrinkWrap: true,
-      itemCount: filteredData.length,
-      separatorBuilder: (context, index) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final citizen = filteredData[index];
-        return ListTile(
-          dense: true,
-          title: Text(
-            citizen['nik'].toString(),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(citizen['full_name'] ?? 'Nama tidak tersedia'),
-          onTap: () {
-            setState(() {
-              widget.nikController.text = citizen['nik'].toString();
-              widget.nameController.text = citizen['full_name'] ?? '';
-              _showDropdown = false;
-            });
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        shrinkWrap: true,
+        itemCount: filteredData.length,
+        separatorBuilder: (context, index) =>
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+        itemBuilder: (context, index) {
+          final citizen = filteredData[index];
+          return ListTile(
+            dense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            title: Text(
+              citizen['nik'].toString(),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            subtitle: Text(
+              citizen['full_name'] ?? 'Nama tidak tersedia',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            onTap: () {
+              setState(() {
+                widget.nikController.text = citizen['nik'].toString();
+                widget.nameController.text = citizen['full_name'] ?? '';
+                _showDropdown = false;
+              });
 
-            if (widget.onSelected != null) {
-              widget.onSelected!(
-                citizen['nik'].toString(),
-                citizen['full_name'] ?? '',
-              );
-            }
-          },
-        );
-      },
+              if (widget.onSelected != null) {
+                widget.onSelected!(
+                  citizen['nik'].toString(),
+                  citizen['full_name'] ?? '',
+                );
+              }
+            },
+          );
+        },
+      ),
     );
   }
 }

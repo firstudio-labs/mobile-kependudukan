@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_bloc.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_event.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_state.dart';
@@ -114,11 +115,7 @@ class _SplashScreenState extends State<SplashScreen>
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF4A47DC), Color(0xFF3F3AC6)],
-            ),
+            color: AppTheme.primaryColor,
           ),
           child: Center(
             child: AnimatedBuilder(

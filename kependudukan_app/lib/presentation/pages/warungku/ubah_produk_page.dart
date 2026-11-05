@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
 import 'package:ladimas/presentation/pages/home/penduduk_home_page.dart';
 import 'package:ladimas/presentation/pages/tagihan/tagihan_page.dart';
 import 'package:ladimas/presentation/pages/webview/document_services_webview_page.dart';
 import 'package:ladimas/presentation/pages/dataku/dataku_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -53,7 +55,7 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with existing data (gunakan nilai mentah jika ada)
+    // Initialize controllers dengan data yang ada
     _namaProdukController =
         TextEditingController(text: widget.productData['name'] ?? '');
     final dynamic hargaRaw = widget.productData['harga'];
@@ -79,34 +81,26 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
 
     _detailImageUrl = widget.productData['imageUrl']?.toString();
 
-    // Load data secara berurutan untuk memastikan dropdown menampilkan data yang benar
     _initializeData();
   }
 
   Future<void> _initializeData() async {
-    // Jika ada productId, gunakan endpoint edit yang mengembalikan data + filter
     if (widget.productId != null) {
       await _loadEditData(widget.productId!);
     } else {
-      // Jika tidak ada productId, load filter biasa
       await _loadFilters();
     }
   }
 
   Future<void> _loadEditData(int id) async {
     try {
-      print('🔄 Loading edit data for product ID: $id');
       final editData = await _api.getEditData(id);
-      print('📦 Edit data response: $editData');
 
       final data = editData['data'] as Map<String, dynamic>? ?? {};
       final filters = editData['filters'] as Map<String, dynamic>? ?? {};
 
-      // Extract product data with safe type casting
-      final String? jenis = data['jenis']?.toString();
       final String? klas = data['klasifikasi']?.toString();
 
-      // Safe casting for numeric values
       final int? harga = () {
         final value = data['harga'];
         if (value is num) return value.toInt();
@@ -130,17 +124,10 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
         return null;
       }();
 
-      print(
-          '📦 Product data - Jenis: $jenis, Klasifikasi: $klas, Harga: $harga, Stok: $stok, JenisMasterId: $jenisMasterId');
-
-      // Extract filter data
       final List<dynamic> klassList =
           filters['klasifikasi'] as List<dynamic>? ?? [];
       final List<dynamic> jenisList = filters['jenis'] as List<dynamic>? ?? [];
 
-      print('📋 Filter data - Klasifikasi: $klassList, Jenis: $jenisList');
-
-      // Normalize klasifikasi
       final List<String> normalizedKlas = [];
       for (final k in klassList.map((e) => e.toString())) {
         final exists =
@@ -148,7 +135,6 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
         if (!exists) normalizedKlas.add(k);
       }
 
-      // Filter jenis berdasarkan klasifikasi yang dipilih
       List<Map<String, dynamic>> filteredJenis = [];
       if (klas != null && klas.isNotEmpty) {
         filteredJenis = jenisList
@@ -160,32 +146,22 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
             .toList();
       }
 
-      print('📋 Filtered jenis for klasifikasi "$klas": $filteredJenis');
-
       setState(() {
-        // Update product data
         if (klas != null && klas.isNotEmpty) _selectedKlasifikasi = klas;
         if (harga != null) _hargaController.text = harga.toString();
         if (stok != null) _stokController.text = stok.toString();
         if (foto != null && foto.isNotEmpty) _detailImageUrl = foto;
 
-        // Update filter options
         _klassOptions = normalizedKlas;
         _jenisOptions = filteredJenis;
 
-        // Set jenis ID yang benar
         if (jenisMasterId != null) {
           _selectedJenisId = jenisMasterId;
-          print('✅ Set selectedJenisId to: $jenisMasterId');
         } else {
           _selectedJenisId = null;
-          print('⚠️ Reset selectedJenisId to null');
         }
       });
-
-      print('✅ Edit data loaded successfully');
     } catch (e) {
-      print('❌ Error loading edit data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal memuat data edit: $e')),
@@ -197,7 +173,6 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
   Future<void> _loadFilters() async {
     try {
       final klass = await _api.getKlasifikasiList();
-      // normalisasi unique
       final List<String> normalized = [];
       for (final k in klass.map((e) => e.toString())) {
         final exists =
@@ -207,12 +182,10 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
 
       setState(() {
         _klassOptions = normalized;
-        // Reset jenis options saat pertama kali load
         _jenisOptions = [];
         _selectedJenisId = null;
       });
     } catch (e) {
-      print('❌ Error loading filters: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal memuat klasifikasi: $e')),
@@ -223,20 +196,16 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
 
   Future<void> _loadJenisByKlasifikasi(String klasifikasi) async {
     try {
-      print('🔄 Loading jenis for klasifikasi: $klasifikasi');
       final jenisList =
           await _api.getJenisByKlasifikasi(klasifikasi.toLowerCase());
-      print('📋 Jenis response: $jenisList');
 
       if (!mounted) return;
 
       setState(() {
         _jenisOptions = jenisList;
-        _selectedJenisId = null; // Reset selection
+        _selectedJenisId = null;
       });
-      print('✅ Jenis loaded successfully');
     } catch (e) {
-      print('❌ Error loading jenis: $e');
       setState(() {
         _jenisOptions = [];
         _selectedJenisId = null;
@@ -289,42 +258,35 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F6FA),
+        backgroundColor: AppTheme.whiteColor,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF4A47DC)),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
           onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Ubah Produk',
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Title like Usaha Saya page
-              const Padding(
-                padding: EdgeInsets.fromLTRB(0, 10, 0, 20),
-                child: Center(
-                  child: Text(
-                    'Ubah Produk',
-                    style: TextStyle(
-                      color: Color(0xFF4A47DC),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-              ),
-              // Foto Barang
               _buildFotoBarang(),
               const SizedBox(height: 20),
 
-              // Nama Produk
               _buildTextField(
                 label: 'Nama Produk',
                 controller: _namaProdukController,
@@ -338,90 +300,12 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
               ),
               const SizedBox(height: 16),
 
-              // Klasifikasi
-              _buildDropdownField(
-                label: 'Klasifikasi',
-                value:
-                    _selectedKlasifikasi.isEmpty ? null : _selectedKlasifikasi,
-                items:
-                    _klassOptions.isEmpty ? ['Barang', 'Jasa'] : _klassOptions,
-                onChanged: (value) async {
-                  final newKlas = (value ?? '').toString();
-                  setState(() {
-                    _selectedKlasifikasi = newKlas;
-                    _jenisOptions = [];
-                    _selectedJenisId = null;
-                  });
-
-                  if (newKlas.isNotEmpty) {
-                    await _loadJenisByKlasifikasi(newKlas);
-                  }
-                },
-              ),
+              _buildDropdownKlasifikasi(),
               const SizedBox(height: 16),
 
-              // Jenis
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: DropdownButtonFormField<int>(
-                  value: _selectedJenisId,
-                  isExpanded: true,
-                  selectedItemBuilder: (context) {
-                    final list = _filteredJenisByKlasifikasi();
-                    return list.map((j) {
-                      final String label =
-                          (j['jenis'] ?? j['nama'] ?? j['name'] ?? '-')
-                              .toString();
-                      return Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList();
-                  },
-                  items: [
-                    ..._filteredJenisByKlasifikasi().map((j) {
-                      final dynamic idVal =
-                          j['id'] ?? j['jenis_master_id'] ?? j['jenisId'];
-                      final int? parsedId = (idVal is num)
-                          ? idVal.toInt()
-                          : int.tryParse(idVal?.toString() ?? '');
-                      final String label =
-                          (j['jenis'] ?? j['nama'] ?? j['name'] ?? '-')
-                              .toString();
-                      if (parsedId == null)
-                        return const DropdownMenuItem<int>(
-                            value: null, child: Text('-'));
-                      return DropdownMenuItem<int>(
-                        value: parsedId,
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    })
-                  ],
-                  onChanged: (v) => setState(() => _selectedJenisId = v),
-                  decoration: const InputDecoration(
-                    labelText: 'Jenis',
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    border: InputBorder.none,
-                  ),
-                  hint: const Text('Pilih jenis'),
-                ),
-              ),
+              _buildDropdownJenis(),
               const SizedBox(height: 16),
 
-              // Deskripsi
               _buildTextAreaField(
                 label: 'Deskripsi',
                 controller: _deskripsiController,
@@ -435,11 +319,10 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
               ),
               const SizedBox(height: 16),
 
-              // Harga
               _buildTextField(
                 label: 'Harga',
                 controller: _hargaController,
-                hintText: 'Masukkan harga',
+                hintText: 'Masukkan harga produk',
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -454,7 +337,6 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
               ),
               const SizedBox(height: 16),
 
-              // Stok
               _buildTextField(
                 label: 'Stok',
                 controller: _stokController,
@@ -470,173 +352,138 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 28),
 
-              // Action Buttons
+              // Tombol Ubah / Simpan Perubahan
               _buildActionButtons(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: const Color(0xFF4A47DC),
-        unselectedItemColor: Colors.grey,
-        currentIndex: 1, // Ubah Produk
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.storefront_sharp, size: 28),
-              label: 'Ubah Produk'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.info_outline, size: 28), label: 'Portal'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_2, size: 28), label: 'Dataku'),
-        ],
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BerandaPage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-            case 1:
-              // Current page - Ubah Produk
-              break;
-            case 2:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PendudukHomePage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-            case 3:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TagihanPage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-            case 4:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      DocumentServicesWebViewPage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-            case 5:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DatakuPage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-          }
-        },
-      ),
     );
   }
 
+  // Widget Upload/Preview Foto Barang
   Widget _buildFotoBarang() {
     String? rawUrl = _detailImageUrl;
     final String? initialUrl = _resolveUrl(rawUrl);
+    final String? showUrl = _resolveUrl(_detailImageUrl ?? (initialUrl ?? ''));
+    final bool hasImage =
+        _pickedImage != null || (showUrl != null && showUrl.isNotEmpty);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Foto Barang',
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () async {
-                final XFile? xfile =
-                    await _picker.pickImage(source: ImageSource.gallery);
-                if (xfile != null) {
-                  setState(() => _pickedImage = File(xfile.path));
-                }
-              },
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
+        GestureDetector(
+          onTap: () async {
+            final XFile? xfile =
+                await _picker.pickImage(source: ImageSource.gallery);
+            if (xfile != null) {
+              setState(() => _pickedImage = File(xfile.path));
+            }
+          },
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+                vertical: hasImage ? 12 : 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!, width: 1),
+            ),
+            child: () {
+              if (_pickedImage != null) {
+                return ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: () {
-                  if (_pickedImage != null) {
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(_pickedImage!, fit: BoxFit.cover),
-                    );
-                  }
-                  final showUrl =
-                      _resolveUrl(_detailImageUrl ?? (initialUrl ?? ''));
-                  if (showUrl != null && showUrl.isNotEmpty) {
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        showUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Center(
-                          child: Icon(
-                            Icons.broken_image,
-                            size: 32,
-                            color: Colors.grey,
-                          ),
-                        ),
+                  child: Image.file(
+                    _pickedImage!,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                );
+              }
+              if (showUrl != null && showUrl.isNotEmpty) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    showUrl,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Center(
+                      child: Icon(
+                        Icons.broken_image,
+                        size: 40,
+                        color: Colors.grey,
                       ),
-                    );
-                  }
-                  return const Center(
-                    child: Icon(
-                      Icons.image_outlined,
-                      size: 32,
-                      color: Colors.grey,
                     ),
-                  );
-                }(),
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Ubah Foto',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF4A47DC),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
+                  ),
+                );
+              }
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.image_outlined,
+                    size: 40,
+                    color: Colors.grey[800],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Choose a photo',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'JPG, JPEG, PNG',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDCE6FF),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF8BAEFA)),
+                    ),
+                    child: const Text(
+                      'Explore File',
+                      style: TextStyle(
+                        color: Color(0xFF4A74EA),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }(),
+          ),
         ),
       ],
     );
   }
 
+  // Widget Input Text Custom
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
@@ -650,9 +497,9 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
@@ -662,29 +509,30 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
           validator: validator,
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(color: Colors.grey[400]),
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
             filled: true,
             fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF4A47DC)),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.primaryColor),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         ),
       ],
     );
   }
 
+  // Widget Text Area Custom
   Widget _buildTextAreaField({
     required String label,
     required TextEditingController controller,
@@ -697,55 +545,56 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           validator: validator,
-          maxLines: 4,
+          maxLines: 3,
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(color: Colors.grey[400]),
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
             filled: true,
             fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF4A47DC)),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.primaryColor),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDropdownField({
-    required String label,
-    required String? value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
+  // Dropdown Pilih Kategori
+  Widget _buildDropdownKlasifikasi() {
     final List<String> uniqueItems = [
-      ...{for (final s in items) s}
+      ...{
+        for (final s
+            in (_klassOptions.isEmpty ? ['Barang', 'Jasa'] : _klassOptions))
+          s
+      }
     ].toList();
+    final String? value =
+        _selectedKlasifikasi.isEmpty ? null : _selectedKlasifikasi;
     final String? safeValue = (value != null &&
             uniqueItems.any((x) => x.toLowerCase() == value.toLowerCase()))
         ? uniqueItems.firstWhere((x) => x.toLowerCase() == value.toLowerCase())
-        : value; // pertahankan value lama untuk placeholder
-    // Jika items kosong tapi ada nilai lama, tampilkan sebagai placeholder agar user melihat nilai saat ini
+        : value;
     final List<String> effectiveItems =
         uniqueItems.isEmpty && (safeValue != null && safeValue.isNotEmpty)
             ? [safeValue]
@@ -756,213 +605,251 @@ class _UbahProdukPageState extends State<UbahProdukPage> {
         ? effectiveItems
             .firstWhere((x) => x.toLowerCase() == safeValue.toLowerCase())
         : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+        const Text(
+          'Pilih Kategori',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: DropdownButtonFormField<String>(
             value: effectiveValue,
-            onChanged: onChanged,
-            decoration: const InputDecoration(
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              border: InputBorder.none,
-            ),
+            dropdownColor: Colors.white,
+            elevation: 3,
+            borderRadius: BorderRadius.circular(12),
+            menuMaxHeight: 250,
             items: effectiveItems.map((String item) {
               return DropdownMenuItem<String>(
                 value: item,
-                child: Text(item),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Text(
+                    item,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
               );
             }).toList(),
+            hint: Text('Pilih kategori',
+                style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
+            onChanged: (value) async {
+              final newKlas = (value ?? '').toString();
+              setState(() {
+                _selectedKlasifikasi = newKlas;
+                _jenisOptions = [];
+                _selectedJenisId = null;
+              });
+
+              if (newKlas.isNotEmpty) {
+                await _loadJenisByKlasifikasi(newKlas);
+              }
+            },
+            decoration: const InputDecoration(
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: InputBorder.none,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildActionButtons() {
-    return Row(
+  // Dropdown Pilih Jenis
+  Widget _buildDropdownJenis() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hapus Produk Button
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _submitting
-                ? null
-                : () {
-                    _showDeleteConfirmation();
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Hapus Produk',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+        const Text(
+          'Pilih Jenis',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: DropdownButtonFormField<int>(
+            value: _selectedJenisId,
+            isExpanded: true,
+            dropdownColor: Colors.white,
+            elevation: 3,
+            borderRadius: BorderRadius.circular(12),
+            menuMaxHeight: 250,
+            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
+            hint: Text('Pilih jenis',
+                style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+            selectedItemBuilder: (context) {
+              final list = _filteredJenisByKlasifikasi();
+              return list.map((j) {
+                final String label =
+                    (j['jenis'] ?? j['nama'] ?? j['name'] ?? '-').toString();
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  ),
+                );
+              }).toList();
+            },
+            items: [
+              ..._filteredJenisByKlasifikasi().map((j) {
+                final dynamic idVal =
+                    j['id'] ?? j['jenis_master_id'] ?? j['jenisId'];
+                final int? parsedId = (idVal is num)
+                    ? idVal.toInt()
+                    : int.tryParse(idVal?.toString() ?? '');
+                final String label =
+                    (j['jenis'] ?? j['nama'] ?? j['name'] ?? '-').toString();
+                if (parsedId == null) {
+                  return const DropdownMenuItem<int>(
+                      value: null, child: Text('-'));
+                }
+                return DropdownMenuItem<int>(
+                  value: parsedId,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                );
+              })
+            ],
+            onChanged: (v) => setState(() => _selectedJenisId = v),
+            decoration: const InputDecoration(
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: InputBorder.none,
             ),
           ),
         ),
-        const SizedBox(width: 16),
-        // Ubah Button
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _submitting
-                ? null
-                : () async {
-                    if (_formKey.currentState!.validate()) {
-                      if (_selectedJenisId == null) {
+      ],
+    );
+  }
+
+  // Tombol Simpan Perubahan Full-Width
+  Widget _buildActionButtons() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _submitting
+            ? null
+            : () async {
+                if (_formKey.currentState!.validate()) {
+                  if (_selectedJenisId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Silakan pilih Jenis terlebih dahulu')),
+                    );
+                    return;
+                  }
+                  setState(() => _submitting = true);
+                  try {
+                    final id = widget.productData['id'] is int
+                        ? widget.productData['id'] as int
+                        : int.tryParse('${widget.productData['id'] ?? '0'}') ??
+                            0;
+                    final ok = await _api.updateProduct(
+                      id: id,
+                      namaProduk: _namaProdukController.text.trim(),
+                      deskripsi: _deskripsiController.text.trim(),
+                      harga: int.parse(_hargaController.text
+                          .replaceAll(RegExp(r'[^\d]'), '')),
+                      stok: int.parse(_stokController.text),
+                      jenisMasterId: _selectedJenisId,
+                      klasifikasiMasterId: () {
+                        final all = _jenisOptions;
+                        if (all.isEmpty) return null;
+                        final match = all.firstWhere(
+                          (j) => (j['id'] as num?)?.toInt() == _selectedJenisId,
+                          orElse: () => {},
+                        );
+                        if (match.isEmpty) return null;
+                        final dynamic klasId = match['klasifikasi_master_id'];
+                        return (klasId is num)
+                            ? klasId.toInt()
+                            : int.tryParse('${klasId ?? ''}');
+                      }(),
+                      foto: _pickedImage,
+                    );
+                    if (ok) {
+                      if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content:
-                                  Text('Silakan pilih Jenis terlebih dahulu')),
+                            content: Text('Produk berhasil diubah!'),
+                            backgroundColor: Colors.green,
+                          ),
                         );
-                        return;
-                      }
-                      setState(() => _submitting = true);
-                      try {
-                        final id = widget.productData['id'] is int
-                            ? widget.productData['id'] as int
-                            : int.tryParse(
-                                    '${widget.productData['id'] ?? '0'}') ??
-                                0;
-                        final ok = await _api.updateProduct(
-                          id: id,
-                          namaProduk: _namaProdukController.text.trim(),
-                          deskripsi: _deskripsiController.text.trim(),
-                          harga: int.parse(_hargaController.text
-                              .replaceAll(RegExp(r'[^\d]'), '')),
-                          stok: int.parse(_stokController.text),
-                          jenisMasterId: _selectedJenisId,
-                          klasifikasiMasterId: () {
-                            // cari salah satu jenis yang cocok untuk ambil id klasifikasi jika API memerlukannya
-                            final all = _jenisOptions;
-                            if (all.isEmpty) return null;
-                            final match = all.firstWhere(
-                              (j) =>
-                                  (j['id'] as num?)?.toInt() ==
-                                  _selectedJenisId,
-                              orElse: () => {},
-                            );
-                            if (match.isEmpty) return null;
-                            // jika backend memerlukan id klasifikasi terpisah, sering tidak ada; jika ada gunakan field 'klasifikasi_master_id' atau mapping khusus
-                            final dynamic klasId =
-                                match['klasifikasi_master_id'];
-                            return (klasId is num)
-                                ? klasId.toInt()
-                                : int.tryParse('${klasId ?? ''}');
-                          }(),
-                          foto: _pickedImage,
-                        );
-                        if (ok) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Produk berhasil diubah!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                          Navigator.pop(context, true);
-                        }
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Gagal mengubah produk: $e')),
-                        );
-                      } finally {
-                        if (mounted) setState(() => _submitting = false);
+                        Navigator.pop(context, true);
                       }
                     }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4A47DC),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Ubah',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showDeleteConfirmation() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Konfirmasi Hapus'),
-          content: const Text('Apakah Anda yakin ingin menghapus produk ini?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Batal'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                setState(() => _submitting = true);
-                try {
-                  final id = widget.productData['id'] is int
-                      ? widget.productData['id'] as int
-                      : int.tryParse('${widget.productData['id'] ?? '0'}') ?? 0;
-                  final ok = await _api.deleteProduct(id);
-                  if (ok) {
-                    final rootContext = mounted ? this.context : null;
-                    if (rootContext != null) {
-                      ScaffoldMessenger.of(rootContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('Produk berhasil dihapus!'),
-                          backgroundColor: Colors.red,
-                        ),
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Gagal mengubah produk: $e')),
                       );
                     }
-                    if (mounted) Navigator.pop(this.context, true);
+                  } finally {
+                    if (mounted) setState(() => _submitting = false);
                   }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal menghapus produk: $e')),
-                  );
-                } finally {
-                  if (mounted) setState(() => _submitting = false);
                 }
               },
-              child: const Text(
-                'Hapus',
-                style: TextStyle(color: Colors.red),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primaryColor,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: _submitting
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                'Simpan Perubahan',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
-        );
-      },
+      ),
     );
   }
 }

@@ -1,5 +1,11 @@
 import 'dart:collection';
 
+/// Kunci cache untuk data biodata/anggota keluarga yang dipakai lintas halaman.
+class BiodataCacheKeys {
+  static const String apiBiodataPayload = 'biodata_payload';
+  static const String citizenDetail = 'citizen_detail';
+}
+
 class CacheEntry<T> {
   final T value;
   final DateTime insertedAt;

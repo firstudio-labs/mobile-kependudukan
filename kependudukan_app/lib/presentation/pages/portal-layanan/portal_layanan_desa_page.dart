@@ -6,6 +6,7 @@ import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
 import 'package:ladimas/presentation/pages/warungku/warungku_page.dart';
 import 'package:ladimas/presentation/pages/home/penduduk_home_page.dart';
 import 'package:ladimas/presentation/pages/tagihan/tagihan_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 
 class PortalLayananDesaPage extends StatefulWidget {
   final Penduduk penduduk;
@@ -58,26 +59,17 @@ class _PortalLayananDesaPageState extends State<PortalLayananDesaPage> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: const Color(0xFF4A47DC),
-        unselectedItemColor: Colors.grey,
+      bottomNavigationBar: AppBottomNavBar(
         currentIndex: 5, // Dataku
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.storefront_sharp, size: 28), label: 'Warungku'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.info_outline, size: 28), label: 'Portal'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_2, size: 28), label: 'Dataku'),
+        items: [
+          AppBottomNavBar.item(icon: Icons.home_outlined, label: 'Beranda'),
+          AppBottomNavBar.item(icon: Icons.storefront, label: 'Warungku'),
+          AppBottomNavBar.item(
+              icon: Icons.grid_view_outlined, label: 'Informasi'),
+          AppBottomNavBar.item(
+              icon: Icons.account_balance_outlined, label: 'Profil Desa'),
+          AppBottomNavBar.item(icon: Icons.receipt_long_outlined, label: 'Tagihan'),
+          AppBottomNavBar.item(icon: Icons.description, label: 'Portal'),
         ],
         onTap: (index) {
           switch (index) {
