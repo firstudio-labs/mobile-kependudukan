@@ -307,7 +307,8 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
           currentIndex: 0, // Beranda
           items: [
             AppBottomNavBar.item(icon: Icons.home, label: 'Beranda'),
-            AppBottomNavBar.item(icon: Icons.receipt_long_outlined, label: 'Tagihan'),
+            AppBottomNavBar.item(
+                icon: Icons.receipt_long_outlined, label: 'Tagihan'),
             AppBottomNavBar.item(icon: Icons.person_outline, label: 'Biodata'),
           ],
           onTap: (index) {
@@ -942,10 +943,12 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                            color:
+                                AppTheme.primaryColor.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                              color:
+                                  AppTheme.primaryColor.withValues(alpha: 0.2),
                               width: 1.5,
                             ),
                           ),
@@ -2388,8 +2391,8 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           'Konfirmasi',
-          style:
-              TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
         ),
         content: const Text('Apakah Anda yakin ingin keluar?',
             style: TextStyle(fontSize: 16)),

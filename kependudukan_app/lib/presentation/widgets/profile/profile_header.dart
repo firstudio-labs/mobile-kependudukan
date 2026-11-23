@@ -13,11 +13,7 @@ class ProfileHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
-        ),
+        color: AppTheme.primaryColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

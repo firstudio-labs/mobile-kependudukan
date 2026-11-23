@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:ladimas/core/services/message_service.dart';
 import 'package:ladimas/core/services/cache_service.dart';
+import 'package:ladimas/core/services/persistent_cache_service.dart';
 import 'package:ladimas/core/services/wilayah_service.dart';
 import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
@@ -73,11 +74,50 @@ class _DatakuPageState extends State<DatakuPage> {
   @override
   void initState() {
     super.initState();
+    _loadFromCacheImmediate();
     _loadData();
   }
 
+  void _loadFromCacheImmediate() {
+    // 1. Cek in-memory CacheService dulu (instan 0ms)
+    final cachedPayload = CacheService()
+        .get<Map<String, dynamic>>(BiodataCacheKeys.apiBiodataPayload);
+    if (cachedPayload != null && cachedPayload['biodata'] != null) {
+      _applyCachedPayload(cachedPayload);
+      return;
+    }
+
+    // 2. Cek persistent cache jika in-memory belum ada
+    PersistentCacheService()
+        .getJson<Map<String, dynamic>>(
+            '${BiodataCacheKeys.apiBiodataPayload}_${widget.penduduk.nik}')
+        .then((persisted) {
+      if (persisted != null && mounted && (_biodata == null || _biodata!.isEmpty)) {
+        setState(() {
+          _applyCachedPayload(persisted);
+        });
+      }
+    });
+  }
+
+  void _applyCachedPayload(Map<String, dynamic> data) {
+    _biodata = Map<String, dynamic>.from(data['biodata'] ?? {});
+    _informasiUsaha = data['informasi_usaha'];
+    _user = data['user'];
+    _isLoading = false;
+    CacheService().set<Map<String, dynamic>>(
+      BiodataCacheKeys.apiBiodataPayload,
+      data,
+      ttl: const Duration(minutes: 30),
+    );
+  }
+
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    // Hanya tampilkan loading jika data belum ada di cache sama sekali
+    final hasInitialData = _biodata != null && _biodata!.isNotEmpty;
+    if (!hasInitialData) {
+      setState(() => _isLoading = true);
+    }
     try {
       // Jalankan request biodata & dokumen (foto diri) secara paralel
       await Future.wait([
@@ -97,7 +137,9 @@ class _DatakuPageState extends State<DatakuPage> {
 
       await _resolveLocationNames();
     } catch (e) {
-      MessageService.showErrorSnackBar(context, e.toString());
+      if (!hasInitialData) {
+        MessageService.showErrorSnackBar(context, e.toString());
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -130,6 +172,11 @@ class _DatakuPageState extends State<DatakuPage> {
               BiodataCacheKeys.apiBiodataPayload,
               data,
               ttl: const Duration(minutes: 30),
+            );
+            PersistentCacheService().setJson(
+              '${BiodataCacheKeys.apiBiodataPayload}_${widget.penduduk.nik}',
+              data,
+              ttl: const Duration(days: 7),
             );
           }
         }
@@ -236,6 +283,11 @@ class _DatakuPageState extends State<DatakuPage> {
         BiodataCacheKeys.apiBiodataPayload,
         cachedPayload,
         ttl: const Duration(minutes: 30),
+      );
+      PersistentCacheService().setJson(
+        '${BiodataCacheKeys.apiBiodataPayload}_${widget.penduduk.nik}',
+        cachedPayload,
+        ttl: const Duration(days: 7),
       );
     }
   }
@@ -450,15 +502,25 @@ class _DatakuPageState extends State<DatakuPage> {
   }
 
   Future<void> _navigateToPage(Widget page) async {
-    if (_isProcessingNavigation) return;
+    final pageName = page.runtimeType.toString();
+    final sw = Stopwatch()..start();
+    print('⏱️ [NAVIGATE] Mulai navigasi ke $pageName pada: ${DateTime.now()}');
+
+    if (_isProcessingNavigation) {
+      print('⚠️ [NAVIGATE] Navigasi ke $pageName DIBATALKAN karena _isProcessingNavigation = true');
+      return;
+    }
     _isProcessingNavigation = true;
 
     try {
+      print('🚀 [NAVIGATE] Memanggil Navigator.push($pageName)...');
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => page),
       );
+      print('🔙 [NAVIGATE] Kembali dari $pageName setelah total ${sw.elapsedMilliseconds}ms');
     } catch (e) {
+      print('❌ [NAVIGATE] Error navigasi ke $pageName: $e');
       if (mounted) {
         MessageService.showErrorSnackBar(context, 'Error: ${e.toString()}');
       }
@@ -472,8 +534,7 @@ class _DatakuPageState extends State<DatakuPage> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is Unauthenticated) {
-          Navigator.pushAndRemoveUntil(
-            context,
+          Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const LoginPage()),
             (route) => false,
           );
@@ -690,35 +751,45 @@ class _DatakuPageState extends State<DatakuPage> {
 
             return GestureDetector(
               onTap: () {
-                if (_isProcessingNavigation) return;
+                final label = cat['label'] as String;
+                print('👉 [KLIK_MENU] Menu "$label" disentuh/diklik pada: ${DateTime.now()}');
+                if (_isProcessingNavigation) {
+                  print('⚠️ [KLIK_MENU] Dibatalkan: navigasi lain sedang diproses (_isProcessingNavigation = true)');
+                  return;
+                }
+                if (_isDebouncing()) {
+                  print('⚠️ [KLIK_MENU] Dibatalkan: terkena debounce (_isDebouncing = true)');
+                  return;
+                }
                 _selectedCategoryIndex = index;
                 final currentKK = _biodata?['kk']?.toString() ?? '';
                 switch (index) {
                   case 0:
+                    print('👉 [KLIK_MENU] Membuka Profil...');
                     _navigateToPage(ProfileEditPage(
                       penduduk: widget.penduduk,
                       initialBiodata: _biodata,
                     ));
                     break;
                   case 1:
+                    print('👉 [KLIK_MENU] Membuka Biodata (initialBiodata != null: ${_biodata != null})...');
                     _navigateToPage(BiodataEditPage(
                       penduduk: widget.penduduk,
                       initialBiodata: _biodata,
                     ));
                     break;
                   case 2:
-                    if (!_isProcessingNavigation && !_isDebouncing()) {
-                      _navigateToPage(FamilyListPage(
-                          kk: currentKK, nikPenduduk: widget.penduduk.nik));
-                    }
+                    print('👉 [KLIK_MENU] Membuka Keluarga...');
+                    _navigateToPage(FamilyListPage(
+                        kk: currentKK, nikPenduduk: widget.penduduk.nik));
                     break;
                   case 3:
-                    if (!_isProcessingNavigation && !_isDebouncing()) {
-                      _navigateToPage(DomisiliMapPage(
-                          nik: widget.penduduk.nik, kk: currentKK));
-                    }
+                    print('👉 [KLIK_MENU] Membuka Domisili...');
+                    _navigateToPage(DomisiliMapPage(
+                        nik: widget.penduduk.nik, kk: currentKK));
                     break;
                   case 4:
+                    print('👉 [KLIK_MENU] Membuka Aset...');
                     _navigateToPage(const AssetListPage());
                     break;
                 }
@@ -1158,20 +1229,8 @@ class _DatakuPageState extends State<DatakuPage> {
       if (mounted) {
         context.read<AuthBloc>().add(LogoutEvent());
       }
-
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      if (mounted) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-          (route) => false,
-        );
-      }
+      // Navigasi ke LoginPage ditangani secara terpusat oleh BlocListener (Unauthenticated)
+      // agar tidak terjadi race condition atau Navigator stack kosong (_history.isNotEmpty)
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();

@@ -26,6 +26,7 @@ class DomisiliMapPage extends StatefulWidget {
 }
 
 class _DomisiliMapPageState extends State<DomisiliMapPage> {
+  final Stopwatch _stopwatch = Stopwatch();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _latitudeController = TextEditingController();
   final TextEditingController _longitudeController = TextEditingController();
@@ -57,6 +58,9 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
   List<Map<String, dynamic>> _subDistricts = [];
   List<Map<String, dynamic>> _villages = [];
 
+  // Fix race condition: simpan member data jika provinces belum siap saat DomisiliLoaded tiba
+  dynamic _pendingMember;
+
   Future<Map<String, String>> _authHeaders() async {
     final authLocalStorage = GetIt.instance<AuthLocalStorage>();
     final rawToken = await authLocalStorage.getStoredToken();
@@ -87,6 +91,7 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
   }
 
   Future<void> _loadProvinces() async {
+    print('🌐 [DOMISILI_PAGE] Memuat data provinsi... (+${_stopwatch.elapsedMilliseconds}ms)');
     try {
       final headers = await _authHeaders();
       final resp = await http.get(
@@ -95,11 +100,95 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
           headers: headers);
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
-        if (mounted)
+        if (mounted) {
           setState(
               () => _provinces = List<Map<String, dynamic>>.from(data['data']));
+          print('✅ [DOMISILI_PAGE] Berhasil memuat ${_provinces.length} provinsi (+${_stopwatch.elapsedMilliseconds}ms)');
+
+          // Fix race condition: jika DomisiliLoaded sudah tiba sebelum provinces siap, proses sekarang
+          if (_pendingMember != null) {
+            print('⚡ [DOMISILI_PAGE] Memproses pending member data setelah provinces siap (+${_stopwatch.elapsedMilliseconds}ms)');
+            final member = _pendingMember;
+            _pendingMember = null;
+            _applyMemberData(member);
+          }
+        }
       }
     } catch (_) {}
+  }
+
+  /// Terapkan data member ke form + cascade load dropdowns wilayah
+  Future<void> _applyMemberData(dynamic member) async {
+    // Set coordinates
+    if (member.coordinate != null && member.coordinate!.isNotEmpty) {
+      final coords = member.coordinate!.split(',');
+      if (coords.length == 2) {
+        try {
+          double lat = double.parse(coords[0]);
+          double lng = double.parse(coords[1]);
+          if (mounted) {
+            setState(() {
+              _currentPosition = LatLng(lat, lng);
+              _latitudeController.text = lat.toStringAsFixed(6);
+              _longitudeController.text = lng.toStringAsFixed(6);
+            });
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _mapController.move(_currentPosition, 16.0);
+            }
+          });
+        } catch (e) {
+          // Ignore parse error
+        }
+      }
+    } else {
+      if (mounted) {
+        _latitudeController.clear();
+        _longitudeController.clear();
+      }
+    }
+
+    // Set address
+    if (mounted) {
+      setState(() => _addressController.text = member.address ?? '');
+    }
+
+    // Cascade load wilayah dropdowns
+    if (member.provinceId != null) {
+      if (mounted) setState(() => _provinceId = member.provinceId);
+      final pCode = _getCodeById(_provinces, _provinceId);
+      print('⚡ [DOMISILI_PAGE] provinceId=${member.provinceId}, pCode=$pCode (+${_stopwatch.elapsedMilliseconds}ms)');
+      if (pCode != null) {
+        await _loadDistricts(pCode);
+        if (member.districtId != null) {
+          if (mounted) setState(() => _districtId = member.districtId);
+          final dCode = _getCodeById(_districts, _districtId);
+          if (dCode != null) {
+            await _loadSubDistricts(dCode);
+            if (member.subDistrictId != null) {
+              if (mounted) setState(() => _subDistrictId = member.subDistrictId);
+              final sCode = _getCodeById(_subDistricts, _subDistrictId);
+              if (sCode != null) {
+                await _loadVillages(sCode);
+                if (member.villageId != null) {
+                  if (mounted) setState(() => _villageId = member.villageId);
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _provinceId = null;
+          _districtId = null;
+          _subDistrictId = null;
+          _villageId = null;
+        });
+      }
+    }
   }
 
   Future<void> _loadDistricts(String code) async {
@@ -152,6 +241,9 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
 
   @override
   void initState() {
+    _stopwatch.start();
+    print('🚀 [DOMISILI_PAGE] initState() MULAI (+0ms)');
+    print('📋 [DOMISILI_PAGE] Parameter: NIK="${widget.nik}", KK="${widget.kk}" (+${_stopwatch.elapsedMilliseconds}ms)');
     super.initState();
     _domisiliCubit = GetIt.instance<DomisiliCubit>();
 
@@ -164,6 +256,10 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
     } else {
       _loadData();
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('🎉 [DOMISILI_PAGE] >>> FRAME PERTAMA SELESAI TAMPIL DI LAYAR! Total waktu: ${_stopwatch.elapsedMilliseconds}ms sejak initState');
+    });
 
     // Dengarkan pergerakan peta dan update koordinat berdasarkan center
     _mapEventSub = _mapController.mapEventStream.listen((event) {
@@ -308,6 +404,7 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
   Future<void> _loadKKData() async {
     if (_isLoadingKK) return;
 
+    print('🌐 [DOMISILI_PAGE] KK kosong, mengambil data KK untuk NIK: ${widget.nik} via AuthRepository (+${_stopwatch.elapsedMilliseconds}ms)');
     setState(() => _isLoadingKK = true);
 
     try {
@@ -319,22 +416,21 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
 
       result.fold(
         (failure) {
-          // Jika gagal, tampilkan error
+          print('❌ [DOMISILI_PAGE] Gagal mendapatkan data KK: ${failure.message} (+${_stopwatch.elapsedMilliseconds}ms)');
           setState(() {
             _errorMessage = 'Gagal mendapatkan data KK: ${failure.message}';
           });
         },
         (data) {
           final kk = data['kk']?.toString() ?? '';
+          print('✅ [DOMISILI_PAGE] Berhasil mendapatkan KK: "$kk" (+${_stopwatch.elapsedMilliseconds}ms)');
           if (kk.isNotEmpty) {
-            // Jika berhasil dapat KK, update state dan load data domisili
             setState(() {
               _currentKK = kk;
               _errorMessage = null;
             });
             _loadData();
           } else {
-            // Jika tidak ada KK, tampilkan pesan
             setState(() {
               _errorMessage =
                   'Nomor KK tidak tersedia untuk melihat data domisili';
@@ -358,9 +454,11 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
     final kk = widget.kk.isNotEmpty ? widget.kk : _currentKK;
 
     if (kk.isEmpty) {
+      print('⚠️ [DOMISILI_PAGE] _loadData dibatalkan karena KK kosong (+${_stopwatch.elapsedMilliseconds}ms)');
       return;
     }
 
+    print('🌐 [DOMISILI_PAGE] Memuat data domisili anggota keluarga (KK: "$kk", NIK: "${widget.nik}", forceRefresh: $forceRefresh) (+${_stopwatch.elapsedMilliseconds}ms)');
     await _domisiliCubit.loadFamilyMember(kk, widget.nik,
         forceRefresh: forceRefresh);
   }
@@ -944,72 +1042,14 @@ class _DomisiliMapPageState extends State<DomisiliMapPage> {
           if (state is DomisiliLoaded) {
             final member = state.member;
 
-            // Set coordinates
-            if (member.coordinate != null && member.coordinate!.isNotEmpty) {
-              final coords = member.coordinate!.split(',');
-              if (coords.length == 2) {
-                try {
-                  double lat = double.parse(coords[0]);
-                  double lng = double.parse(coords[1]);
-                  _currentPosition = LatLng(lat, lng);
-                  _latitudeController.text = lat.toStringAsFixed(6);
-                  _longitudeController.text = lng.toStringAsFixed(6);
-
-                  // Move map to the position
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      _mapController.move(_currentPosition, 16.0);
-                    }
-                  });
-                } catch (e) {
-                  // Ignore parse error
-                }
-              }
+            if (_provinces.isEmpty) {
+              // Provinces belum siap → simpan dulu, akan diproses saat provinces selesai
+              print('⏳ [DOMISILI_PAGE] Provinces belum siap, menyimpan member data sebagai pending (+${_stopwatch.elapsedMilliseconds}ms)');
+              _pendingMember = member;
             } else {
-              // Clear if null
-              _latitudeController.clear();
-              _longitudeController.clear();
-            }
-
-            // Set address (Strictly populate from member data)
-            _addressController.text = member.address ?? '';
-
-            // Set wilayah and load dropdown data in cascade
-            if (member.provinceId != null) {
-              _provinceId = member.provinceId;
-              final pCode = _getCodeById(_provinces, _provinceId);
-              if (pCode != null) {
-                _loadDistricts(pCode).then((_) {
-                  if (member.districtId != null) {
-                    setState(() => _districtId = member.districtId);
-                    final dCode = _getCodeById(_districts, _districtId);
-                    if (dCode != null) {
-                      _loadSubDistricts(dCode).then((_) {
-                        if (member.subDistrictId != null) {
-                          setState(() => _subDistrictId = member.subDistrictId);
-                          final sCode =
-                              _getCodeById(_subDistricts, _subDistrictId);
-                          if (sCode != null) {
-                            _loadVillages(sCode).then((_) {
-                              if (member.villageId != null) {
-                                setState(() => _villageId = member.villageId);
-                              }
-                            });
-                          }
-                        }
-                      });
-                    }
-                  }
-                });
-              }
-            } else {
-              // Reset regions if no domicile record
-              setState(() {
-                _provinceId = null;
-                _districtId = null;
-                _subDistrictId = null;
-                _villageId = null;
-              });
+              // Provinces sudah siap → langsung proses
+              print('✅ [DOMISILI_PAGE] Provinces sudah siap, langsung apply member data (+${_stopwatch.elapsedMilliseconds}ms)');
+              _applyMemberData(member);
             }
           } else if (state is DomisiliError) {
             MessageService.showErrorSnackBar(context, state.message);

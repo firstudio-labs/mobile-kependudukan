@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ladimas/core/services/message_service.dart';
 import 'package:ladimas/core/services/wilayah_service.dart';
 import 'package:ladimas/core/services/cache_service.dart';
+import 'package:ladimas/core/services/persistent_cache_service.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/domain/repositories/auth_repository.dart';
@@ -212,7 +213,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             : null);
 
     if (initialData != null && initialData.isNotEmpty) {
-      _currentData = initialData;
+      _currentData = Map<String, dynamic>.from(initialData);
       if (cachedPayload != null) {
         _familyMembers = List<Map<String, dynamic>>.from(
             cachedPayload['family_members'] ?? []);
@@ -228,7 +229,49 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     }
 
     _populateFormFieldsSync();
-    _loadCurrentData();
+
+    // Tunggu sampai frame pertama selesai (transisi halaman selesai) baru jalankan background loading
+    // agar animasi navigasi masuk ke halaman instan 60 FPS tanpa freeze
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadBackgroundDataOptimized();
+    });
+  }
+
+  Future<void> _loadBackgroundDataOptimized() async {
+    // 1. Cek persistent cache jika family_members atau jobs belum ada
+    if (_familyMembers.isEmpty || _jobs.isEmpty || _currentData == null) {
+      final persisted = await PersistentCacheService()
+          .getJson<Map<String, dynamic>>(
+              '${BiodataCacheKeys.apiBiodataPayload}_${widget.penduduk.nik}');
+      if (persisted != null && mounted) {
+        _applyBiodataData(persisted);
+        return;
+      }
+    }
+
+    // 2. Selesaikan resolusi nama wilayah di background jika belum lengkap
+    final provName = _currentData?['province_name']?.toString() ?? '';
+    final distName = _currentData?['district_name']?.toString() ?? '';
+    final subName = _currentData?['sub_district_name']?.toString() ?? '';
+    final villName = _currentData?['village_name']?.toString() ?? '';
+
+    if (provName.isEmpty ||
+        distName.isEmpty ||
+        subName.isEmpty ||
+        villName.isEmpty) {
+      _resolveLocationNamesInBackground();
+    }
+
+    // 3. Ambil data server jika data dasar belum lengkap
+    final hasCompleteData = _currentData != null &&
+        _currentData!.isNotEmpty &&
+        _familyMembers.isNotEmpty &&
+        _jobs.isNotEmpty;
+
+    if (!hasCompleteData) {
+      _loadCurrentData();
+    }
   }
 
   // Komponen Label yang lebih elegan
@@ -512,7 +555,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   Future<void> _loadCurrentData() async {
-    final hasData = _currentData != null && _currentData!.isNotEmpty;
+    final hasData = _currentData != null &&
+        _currentData!.isNotEmpty &&
+        _familyMembers.isNotEmpty;
     if (!hasData) {
       setState(() => _isLoading = true);
     }
@@ -599,6 +644,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         final Map<String, dynamic> jsonResp = json.decode(resp.body);
         if (jsonResp['status'] == 'SUCCESS' && jsonResp['data'] != null) {
           final data = jsonResp['data'];
+
+          CacheService().set<Map<String, dynamic>>(
+            BiodataCacheKeys.apiBiodataPayload,
+            data,
+            ttl: const Duration(minutes: 30),
+          );
+          PersistentCacheService().setJson(
+            '${BiodataCacheKeys.apiBiodataPayload}_${widget.penduduk.nik}',
+            data,
+            ttl: const Duration(days: 7),
+          );
 
           // Set current data
           setState(() {
@@ -908,6 +964,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _kecamatanController.clear();
     _desaController.clear();
 
+    _usahaNamaController.clear();
+    _usahaKelompokController.clear();
+    _usahaAlamatController.clear();
+    _usahaTagLokasiController.clear();
+    _selectedUsahaKelompok = null;
+    _usahaFoto = null;
+
     // Reset dropdown values
     _selectedBloodType = null;
     _selectedEducation = null;
@@ -1087,7 +1150,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   Future<void> _loadMemberData(String nik) async {
-    print('Loading member data for NIK: $nik');
+    print('👤 [PROFIL_PAGE] Memuat data detail anggota keluarga NIK: $nik dari API /penduduk/$nik...');
 
     try {
       final repository = GetIt.instance<AuthRepository>();
@@ -1095,12 +1158,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
       result.fold(
         (failure) async {
-          print('Failed to load member data: ${failure.message}');
+          print('❌ [PROFIL_PAGE] Gagal memuat data detail: ${failure.message}');
           // Fallback ke data dari family members
           await _fallbackToFamilyMemberData(nik);
         },
         (data) async {
-          print('Data loaded successfully: $data');
+          print('✅ [PROFIL_PAGE] Detail anggota keluarga berhasil dimuat');
 
           if (mounted) {
             setState(() {
@@ -1211,17 +1274,39 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         educationValue, _educationLevels, 'education');
     _selectedJob = _validateAndSetDropdownValue(jobValue, _jobs, 'job');
 
+    // Prefill Informasi Usaha jika tersedia
+    if (_informasiUsaha != null) {
+      _usahaNamaController.text =
+          _informasiUsaha?['nama_usaha']?.toString() ?? '';
+      _usahaKelompokController.text =
+          _informasiUsaha?['kelompok_usaha']?.toString() ?? '';
+      final kel = _informasiUsaha?['kelompok_usaha']?.toString();
+      if (kel != null && _kelompokUsahaOptions.contains(kel)) {
+        _selectedUsahaKelompok = kel;
+      } else {
+        _selectedUsahaKelompok = null;
+      }
+      _usahaAlamatController.text =
+          _informasiUsaha?['alamat']?.toString() ?? '';
+      final lat = _informasiUsaha?['tag_lat']?.toString();
+      final lng = _informasiUsaha?['tag_lng']?.toString();
+      final tag = _informasiUsaha?['tag_lokasi']?.toString();
+      _usahaTagLokasiController.text =
+          (lat != null && lng != null && lat.isNotEmpty && lng.isNotEmpty)
+              ? '$lat,$lng'
+              : (tag ?? '');
+
+      final latNum = double.tryParse(lat ?? '');
+      final lngNum = double.tryParse(lng ?? '');
+      if (latNum != null && lngNum != null) {
+        _usahaPosition = LatLng(latNum, lngNum);
+      }
+    }
+
     if (mounted) {
       setState(() {
         _refreshKey++;
       });
-    }
-
-    if (provName.isEmpty ||
-        distName.isEmpty ||
-        subName.isEmpty ||
-        villName.isEmpty) {
-      _resolveLocationNamesInBackground();
     }
   }
 
@@ -1232,6 +1317,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       final distName = _currentData?['district_name']?.toString() ?? '';
       final subName = _currentData?['sub_district_name']?.toString() ?? '';
       final villName = _currentData?['village_name']?.toString() ?? '';
+
+      // Jika seluruh nama wilayah sudah tersedia, jangan request ke jaringan sama sekali
+      if (provName.isNotEmpty &&
+          distName.isNotEmpty &&
+          subName.isNotEmpty &&
+          villName.isNotEmpty) {
+        return;
+      }
 
       final results = await Future.wait<String>([
         provName.isNotEmpty
@@ -1250,11 +1343,40 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
       if (mounted) {
         setState(() {
-          if (results[0].isNotEmpty) _provinsiController.text = results[0];
-          if (results[1].isNotEmpty) _kabupatenController.text = results[1];
-          if (results[2].isNotEmpty) _kecamatanController.text = results[2];
-          if (results[3].isNotEmpty) _desaController.text = results[3];
+          if (results[0].isNotEmpty) {
+            _provinsiController.text = results[0];
+            _currentData!['province_name'] = results[0];
+          }
+          if (results[1].isNotEmpty) {
+            _kabupatenController.text = results[1];
+            _currentData!['district_name'] = results[1];
+          }
+          if (results[2].isNotEmpty) {
+            _kecamatanController.text = results[2];
+            _currentData!['sub_district_name'] = results[2];
+          }
+          if (results[3].isNotEmpty) {
+            _desaController.text = results[3];
+            _currentData!['village_name'] = results[3];
+          }
         });
+
+        // Simpan hasil resolusi nama ke cache agar tidak di-resolve ulang berikutnya
+        final cached = CacheService()
+            .get<Map<String, dynamic>>(BiodataCacheKeys.apiBiodataPayload);
+        if (cached != null) {
+          cached['biodata'] = Map<String, dynamic>.from(_currentData!);
+          CacheService().set<Map<String, dynamic>>(
+            BiodataCacheKeys.apiBiodataPayload,
+            cached,
+            ttl: const Duration(minutes: 30),
+          );
+          PersistentCacheService().setJson(
+            '${BiodataCacheKeys.apiBiodataPayload}_${widget.penduduk.nik}',
+            cached,
+            ttl: const Duration(days: 7),
+          );
+        }
       }
     } catch (_) {}
   }
@@ -2524,6 +2646,37 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     bool enabled = true,
     String? Function(String?)? validator,
   }) {
+    if (!enabled) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildLabel(label),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Text(
+                controller.text.isEmpty ? '-' : controller.text,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF1E293B),
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: maxLines,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -2780,66 +2933,251 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 
+  String? get _selectedJobName {
+    if (_selectedJob == null) return null;
+    final match = _jobs.firstWhere(
+      (j) => j['id']?.toString() == _selectedJob,
+      orElse: () => {},
+    );
+    if (match.isEmpty) return null;
+    return (match['name'] ?? match['job_name'])?.toString();
+  }
+
+  void _showJobSelectionBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return _JobSearchBottomSheet(
+          jobs: _jobs,
+          selectedJobId: _selectedJob,
+          onSelected: (jobId) {
+            setState(() {
+              _selectedJob = jobId;
+            });
+            Navigator.pop(ctx);
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildJobDropdown() {
+    final currentJobName = _selectedJobName;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildLabel('Pekerjaan'),
-          DropdownButtonFormField<String>(
-            value: _selectedJob,
-            isExpanded: true,
-            icon: const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF64748B),
-              size: 20,
-            ),
-            dropdownColor: Colors.white,
+          InkWell(
+            onTap: _showJobSelectionBottomSheet,
             borderRadius: BorderRadius.circular(10),
-            menuMaxHeight: 300,
-            hint: const Text(
-              'Pilih pekerjaan',
-              style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
-            ),
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                border: Border.all(color: Colors.grey[300]!),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      currentJobName ?? 'Pilih pekerjaan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: currentJobName != null
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFF94A3B8),
+                        fontWeight: currentJobName != null
+                            ? FontWeight.w500
+                            : FontWeight.normal,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Color(0xFF64748B),
+                    size: 20,
+                  ),
+                ],
               ),
-              focusedBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(10)),
-                borderSide:
-                    BorderSide(color: AppTheme.primaryColor, width: 1.5),
-              ),
-              filled: true,
-              fillColor: Colors.white,
             ),
-            items: _jobs.map((job) {
-              return DropdownMenuItem<String>(
-                value: job['id']?.toString(),
-                child: Text(
-                  job['name'] ?? job['job_name'] ?? 'N/A',
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  style: const TextStyle(
-                    fontSize: 14,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JobSearchBottomSheet extends StatefulWidget {
+  final List<Map<String, dynamic>> jobs;
+  final String? selectedJobId;
+  final ValueChanged<String> onSelected;
+
+  const _JobSearchBottomSheet({
+    required this.jobs,
+    required this.selectedJobId,
+    required this.onSelected,
+  });
+
+  @override
+  State<_JobSearchBottomSheet> createState() => _JobSearchBottomSheetState();
+}
+
+class _JobSearchBottomSheetState extends State<_JobSearchBottomSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _filteredJobs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredJobs = widget.jobs;
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.toLowerCase().trim();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredJobs = widget.jobs;
+      } else {
+        _filteredJobs = widget.jobs.where((job) {
+          final name =
+              (job['name'] ?? job['job_name'] ?? '').toString().toLowerCase();
+          return name.contains(query);
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      padding: EdgeInsets.only(bottom: bottomInset),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Pilih Pekerjaan',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                     color: Color(0xFF1E293B),
                   ),
                 ),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedJob = value;
-              });
-            },
+                Text(
+                  '${_filteredJobs.length} pilihan',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Cari pekerjaan (contoh: Guru, Petani)...',
+                hintStyle:
+                    const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+                prefixIcon:
+                    const Icon(Icons.search, color: Color(0xFF64748B), size: 20),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.grey[200]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.grey[200]!),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                  borderSide:
+                      BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 16),
+          Expanded(
+            child: _filteredJobs.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Pekerjaan tidak ditemukan',
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filteredJobs.length,
+                    itemBuilder: (context, index) {
+                      final job = _filteredJobs[index];
+                      final id = job['id']?.toString() ?? '';
+                      final name =
+                          (job['name'] ?? job['job_name'] ?? 'N/A').toString();
+                      final isSelected = id == widget.selectedJobId;
+
+                      return ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 2),
+                        title: Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isSelected
+                                ? AppTheme.primaryColor
+                                : const Color(0xFF1E293B),
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle_rounded,
+                                color: AppTheme.primaryColor, size: 20)
+                            : null,
+                        onTap: () => widget.onSelected(id),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

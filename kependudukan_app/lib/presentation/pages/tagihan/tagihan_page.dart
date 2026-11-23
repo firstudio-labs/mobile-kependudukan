@@ -331,10 +331,10 @@ class _TagihanPageState extends State<TagihanPage> {
         leading: IconButton(
           onPressed: () => setState(() => _showFilters = !_showFilters),
           icon: Icon(
-            _showFilters
-                ? Icons.filter_list_off_rounded
-                : Icons.filter_list_rounded,
-            color: _showFilters ? AppTheme.primaryColor : AppTheme.primaryColor,
+            _showFilters ? Icons.filter_list_off_rounded : Icons.tune_rounded,
+            color: _showFilters
+                ? AppTheme.primaryColor
+                : const Color(0xFF64748B),
             size: 22,
           ),
           tooltip: _showFilters ? 'Sembunyikan Filter' : 'Tampilkan Filter',
@@ -405,13 +405,13 @@ class _TagihanPageState extends State<TagihanPage> {
         items: [
           AppBottomNavBar.item(icon: Icons.home_outlined, label: 'Beranda'),
           AppBottomNavBar.item(icon: Icons.storefront, label: 'Warungku'),
-          AppBottomNavBar.item(
-              icon: Icons.grid_view_outlined, label: 'Informasi'),
+          AppBottomNavBar.item(icon: Icons.grid_view, label: 'Informasi'),
           AppBottomNavBar.item(
               icon: Icons.account_balance_outlined, label: 'Profil Desa'),
-          AppBottomNavBar.item(icon: Icons.receipt_long, label: 'Tagihan'),
           AppBottomNavBar.item(
-              icon: Icons.description_outlined, label: 'Portal'),
+              icon: Icons.receipt_long_outlined, label: 'Tagihan'),
+          AppBottomNavBar.item(
+              icon: Icons.assignment_outlined, label: 'Portal'),
         ],
         onTap: (index) {
           switch (index) {
@@ -504,8 +504,9 @@ class _TagihanPageState extends State<TagihanPage> {
                           color: isSelected
                               ? Colors.white
                               : const Color(0xFF475569),
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.w500,
                           fontSize: 12,
                         ),
                       ),
