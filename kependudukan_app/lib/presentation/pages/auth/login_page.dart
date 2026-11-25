@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_bloc.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_event.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_state.dart';
 import 'package:ladimas/presentation/pages/auth/register_page.dart';
-import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
 import 'package:ladimas/presentation/pages/beranda/admin_beranda_page.dart';
+import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
 
 class LoginFormValidator {
-  static String? validateNik(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'NIK tidak boleh kosong';
+  static String? validateNik(String? value, {bool isAdmin = false}) {
+    if (value == null || value.trim().isEmpty) {
+      return isAdmin
+          ? 'Username/NIK tidak boleh kosong'
+          : 'NIK tidak boleh kosong';
     }
-    if (value.length != 16) {
+    if (!isAdmin && value.trim().length != 16) {
       return 'NIK harus 16 digit';
     }
     return null;
@@ -30,38 +33,56 @@ class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
 
   @override
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nikController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isPasswordVisible = false;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  bool _loginSebagaiAdmin = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-    _animationController.forward();
-  }
+  bool _isPasswordVisible = false;
+  bool _loginSebagaiAdmin = false;
 
   @override
   void dispose() {
     _nikController.dispose();
     _passwordController.dispose();
-    _animationController.dispose();
     super.dispose();
+  }
+
+  void _onLoginPressed() {
+    if (_formKey.currentState?.validate() ?? false) {
+      FocusScope.of(context).unfocus(); // Tutup keyboard saat submit
+      if (_loginSebagaiAdmin) {
+        context.read<AuthBloc>().add(
+              LoginAdminEvent(
+                nikOrUsername: _nikController.text.trim(),
+                password: _passwordController.text,
+              ),
+            );
+      } else {
+        context.read<AuthBloc>().add(
+              LoginPendudukEvent(
+                nik: _nikController.text.trim(),
+                password: _passwordController.text,
+              ),
+            );
+      }
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
+        duration: Duration(seconds: isError ? 3 : 1),
+      ),
+    );
   }
 
   @override
@@ -69,34 +90,13 @@ class _LoginPageState extends State<LoginPage>
     final Size size = MediaQuery.of(context).size;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red.shade700,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                margin: const EdgeInsets.all(12),
-              ),
-            );
+            _showSnackBar(state.message, isError: true);
           } else if (state is PendudukAuthenticated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Login berhasil'),
-                backgroundColor: Colors.green.shade700,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                margin: const EdgeInsets.all(12),
-                duration: const Duration(seconds: 1),
-              ),
-            );
-
+            _showSnackBar('Login berhasil');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -104,19 +104,7 @@ class _LoginPageState extends State<LoginPage>
               ),
             );
           } else if (state is AdminAuthenticated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Login admin berhasil'),
-                backgroundColor: Colors.green.shade700,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                margin: const EdgeInsets.all(12),
-                duration: const Duration(seconds: 1),
-              ),
-            );
-
+            _showSnackBar('Login admin berhasil');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -130,411 +118,41 @@ class _LoginPageState extends State<LoginPage>
 
           return Stack(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.grey.shade100, Colors.white],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Top wave design
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: size.height * 0.35,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF4A47DC), Color(0xFF3F3AC6)],
-                          ),
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(30),
-                            bottomRight: Radius.circular(30),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0x294A47DC),
-                              blurRadius: 15,
-                              offset: Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Content
-                    FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Center(
-                        child: AbsorbPointer(
-                          absorbing: isLoading,
-                          child: SingleChildScrollView(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // App title on top wave
-                                const Padding(
-                                  padding: EdgeInsets.only(bottom: 20),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        'LADIMAS',
-                                        style: TextStyle(
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          letterSpacing: 0.8,
-                                          shadows: [
-                                            Shadow(
-                                              blurRadius: 10.0,
-                                              color: Colors.black26,
-                                              offset: Offset(0, 3),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'Layanan Digital Masyarakat',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.white70,
-                                          letterSpacing: 0.5,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                // Login Card
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24.0,
-                                  ),
-                                  child: Card(
-                                    elevation: 8,
-                                    shadowColor: Colors.black26,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(24),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            Colors.white,
-                                            Colors.grey.shade50,
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Form(
-                                        key: _formKey,
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // Logo area
-                                            Container(
-                                              width: 100,
-                                              height: 100,
-                                              decoration: BoxDecoration(
-                                                gradient: const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFF4A47DC),
-                                                    Color(0xFF6A67FC),
-                                                  ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                ),
-                                                shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: const Color(
-                                                      0xFF4A47DC,
-                                                    ).withOpacity(0.4),
-                                                    blurRadius: 12,
-                                                    offset: const Offset(0, 6),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: const Icon(
-                                                Icons.person,
-                                                size: 60,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 24),
-
-                                            // Login title
-                                            const Text(
-                                              'Login',
-                                              style: TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF4A47DC),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 30),
-
-                                            // Toggle login sebagai admin
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.end,
-                                              children: [
-                                                Switch(
-                                                  value: _loginSebagaiAdmin,
-                                                  onChanged: (v) {
-                                                    setState(() {
-                                                      _loginSebagaiAdmin = v;
-                                                    });
-                                                  },
-                                                  activeColor:
-                                                      const Color(0xFF4A47DC),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                const Text(
-                                                  'Login sebagai Admin',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF4A47DC),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 8),
-
-                                            // Username/NIK field
-                                            _buildTextField(
-                                              controller: _nikController,
-                                              label: _loginSebagaiAdmin
-                                                  ? 'NIK Admin'
-                                                  : 'NIK Penduduk (16 digit)',
-                                              icon: _loginSebagaiAdmin
-                                                  ? Icons.badge
-                                                  : Icons.credit_card,
-                                              keyboardType: _loginSebagaiAdmin
-                                                  ? TextInputType.text
-                                                  : TextInputType.number,
-                                              validator: (v) {
-                                                if (v == null || v.isEmpty) {
-                                                  return _loginSebagaiAdmin
-                                                      ? 'Username/NIK tidak boleh kosong'
-                                                      : 'NIK tidak boleh kosong';
-                                                }
-                                                if (!_loginSebagaiAdmin &&
-                                                    v.length != 16) {
-                                                  return 'NIK harus 16 digit';
-                                                }
-                                                return null;
-                                              },
-                                            ),
-                                            const SizedBox(height: 20),
-
-                                            // Password field
-                                            _buildTextField(
-                                              controller: _passwordController,
-                                              label: 'Password',
-                                              icon: Icons.lock,
-                                              isPassword: true,
-                                              passwordVisible:
-                                                  _isPasswordVisible,
-                                              onTogglePassword: () {
-                                                setState(() {
-                                                  _isPasswordVisible =
-                                                      !_isPasswordVisible;
-                                                });
-                                              },
-                                              validator: LoginFormValidator
-                                                  .validatePassword,
-                                            ),
-                                            const SizedBox(height: 36),
-
-                                            // Login button
-                                            SizedBox(
-                                              width: double.infinity,
-                                              height: 54,
-                                              child: ElevatedButton(
-                                                onPressed: isLoading
-                                                    ? null
-                                                    : () {
-                                                        if (_formKey
-                                                            .currentState!
-                                                            .validate()) {
-                                                          if (_loginSebagaiAdmin) {
-                                                            context
-                                                                .read<
-                                                                    AuthBloc>()
-                                                                .add(
-                                                                  LoginAdminEvent(
-                                                                    nikOrUsername:
-                                                                        _nikController
-                                                                            .text,
-                                                                    password:
-                                                                        _passwordController
-                                                                            .text,
-                                                                  ),
-                                                                );
-                                                          } else {
-                                                            context
-                                                                .read<
-                                                                    AuthBloc>()
-                                                                .add(
-                                                                  LoginPendudukEvent(
-                                                                    nik: _nikController
-                                                                        .text,
-                                                                    password:
-                                                                        _passwordController
-                                                                            .text,
-                                                                  ),
-                                                                );
-                                                          }
-                                                        }
-                                                      },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: const Color(
-                                                    0xFF4A47DC,
-                                                  ),
-                                                  disabledBackgroundColor:
-                                                      Colors.grey.shade400,
-                                                  elevation: 5,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      12,
-                                                    ),
-                                                  ),
-                                                  padding: EdgeInsets.zero,
-                                                ),
-                                                child: const Text(
-                                                  'LOGIN',
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.white,
-                                                    letterSpacing: 1.5,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 24),
-
-                                            // Registration link
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.push(
-                                                  context,
-                                                  PageRouteBuilder(
-                                                    pageBuilder: (_, __, ___) =>
-                                                        const RegisterPage(),
-                                                    transitionsBuilder: (
-                                                      _,
-                                                      animation,
-                                                      __,
-                                                      child,
-                                                    ) {
-                                                      return FadeTransition(
-                                                        opacity: animation,
-                                                        child: child,
-                                                      );
-                                                    },
-                                                    transitionDuration:
-                                                        const Duration(
-                                                      milliseconds: 300,
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              style: TextButton.styleFrom(
-                                                foregroundColor: const Color(
-                                                  0xFF4A47DC,
-                                                ),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  vertical: 8,
-                                                  horizontal: 16,
-                                                ),
-                                              ),
-                                              child: const Text(
-                                                'Belum punya akun? Daftar',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              // Header Background
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: size.height * 0.40,
+                child: Container(
+                  color: AppTheme.primaryColor,
                 ),
               ),
 
-              // Loading Overlay
+              // Main Form & Header Text
+              SafeArea(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 100),
+                      _buildHeader(),
+                      const SizedBox(height: 50),
+                      _buildFormCard(isLoading),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Full Screen Overlay Indicator (Optional)
               if (isLoading)
                 Container(
-                  color: Colors.black.withOpacity(0.3),
-                  width: double.infinity,
-                  height: double.infinity,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 16.0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(
-                            width: 40,
-                            height: 40,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF4A47DC),
-                              ),
-                              strokeWidth: 4,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Memproses...',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade800,
-                            ),
-                          ),
-                        ],
-                      ),
+                  color: Colors.black12,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
                     ),
                   ),
                 ),
@@ -545,72 +163,319 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    bool isPassword = false,
-    bool passwordVisible = false,
-    VoidCallback? onTogglePassword,
-    required String? Function(String?) validator,
-  }) {
+  Widget _buildHeader() {
+    return const Column(
+      children: [
+        Text(
+          'LADIMAS',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 1.2,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Layanan Digital Masyarakat',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.white70,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormCard(bool isLoading) {
     return Container(
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: TextFormField(
-        controller: controller,
-        style: const TextStyle(color: Color(0xFF333333), fontSize: 16),
-        keyboardType: keyboardType,
-        obscureText: isPassword && !passwordVisible,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: Color(0xFF666666), fontSize: 15),
-          prefixIcon: Icon(icon, color: const Color(0xFF4A47DC), size: 22),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    passwordVisible ? Icons.visibility : Icons.visibility_off,
-                    color: Colors.grey.shade600,
-                    size: 22,
-                  ),
-                  onPressed: onTogglePassword,
-                )
-              : null,
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: Color(0xFF4A47DC), width: 2.0),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.red.shade300, width: 1.0),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: Colors.red, width: 2.0),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          errorStyle: const TextStyle(color: Colors.red),
+      child: Form(
+        key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Login',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildRoleToggle(),
+            const SizedBox(height: 24),
+            _buildCustomTextField(
+              controller: _nikController,
+              label: _loginSebagaiAdmin ? 'Username / NIK' : 'NIK',
+              hintText: _loginSebagaiAdmin
+                  ? 'Masukkan Username atau NIK'
+                  : '33230921xxxxxxxx',
+              keyboardType: _loginSebagaiAdmin
+                  ? TextInputType.text
+                  : TextInputType.number,
+              validator: (val) => LoginFormValidator.validateNik(val,
+                  isAdmin: _loginSebagaiAdmin),
+            ),
+            const SizedBox(height: 18),
+            _buildCustomTextField(
+              controller: _passwordController,
+              label: 'Password',
+              hintText: '••••••••',
+              isPassword: true,
+              passwordVisible: _isPasswordVisible,
+              onTogglePassword: () {
+                setState(() {
+                  _isPasswordVisible = !_isPasswordVisible;
+                });
+              },
+              validator: LoginFormValidator.validatePassword,
+            ),
+            const SizedBox(height: 28),
+            _buildSubmitButton(isLoading),
+            const SizedBox(height: 20),
+            _buildRegisterOption(),
+          ],
         ),
-        validator: validator,
       ),
+    );
+  }
+
+  Widget _buildRoleToggle() {
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          _buildRoleTab(
+            title: 'Masyarakat',
+            isSelected: !_loginSebagaiAdmin,
+            onTap: () {
+              if (_loginSebagaiAdmin) {
+                setState(() => _loginSebagaiAdmin = false);
+              }
+            },
+          ),
+          _buildRoleTab(
+            title: 'Admin',
+            isSelected: _loginSebagaiAdmin,
+            onTap: () {
+              if (!_loginSebagaiAdmin) {
+                setState(() => _loginSebagaiAdmin = true);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleTab({
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hintText,
+    bool isPassword = false,
+    bool passwordVisible = false,
+    VoidCallback? onTogglePassword,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF475569),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: isPassword && !passwordVisible,
+          keyboardType: keyboardType,
+          validator: validator,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF1E293B),
+          ),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade400,
+            ),
+            suffixIcon: isPassword
+                ? IconButton(
+                    icon: Icon(
+                      passwordVisible
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: const Color(0xFF94A3B8),
+                      size: 20,
+                    ),
+                    onPressed: onTogglePassword,
+                  )
+                : null,
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 14,
+              horizontal: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppTheme.primaryColor,
+                width: 1.5,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.red.shade300),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.red.shade500, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubmitButton(bool isLoading) {
+    return SizedBox(
+      height: 48,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : _onLoginPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primaryColor,
+          disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.6),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                'Login',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildRegisterOption() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          'Belum punya akun? ',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF64748B),
+          ),
+        ),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const RegisterPage(),
+              ),
+            );
+          },
+          child: const Text(
+            'Daftar',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

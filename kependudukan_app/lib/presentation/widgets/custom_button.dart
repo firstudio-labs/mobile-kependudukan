@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 
 class CustomButton extends StatelessWidget {
   final String text;
@@ -28,8 +29,8 @@ class CustomButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? const Color(0xFF4A47DC),
-          foregroundColor: textColor ?? Colors.white,
+          backgroundColor: backgroundColor ?? AppTheme.primaryColor,
+          foregroundColor: textColor ?? AppTheme.whiteColor,
           disabledBackgroundColor: Colors.grey.shade400,
           elevation: 5,
           shape: RoundedRectangleBorder(

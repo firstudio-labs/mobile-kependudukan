@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/data/datasources/laporan_api_service.dart';
 import 'package:ladimas/data/models/laporan_model.dart';
 import 'package:ladimas/presentation/pages/village_report/laporan_form_page.dart';
@@ -55,7 +56,7 @@ class _VillageReportPageState extends State<VillageReportPage> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Lapor Desa'),
-        backgroundColor: const Color(0xFF4A47DC),
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -231,8 +232,8 @@ class _VillageReportPageState extends State<VillageReportPage> {
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          DateFormat('dd MMM yyyy HH:mm')
-                                              .format(report.createdAt),
+                                          AppDateFormatter.formatDateTime(
+                                              report.createdAt),
                                           style: const TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey,
@@ -262,7 +263,7 @@ class _VillageReportPageState extends State<VillageReportPage> {
             _loadReports();
           }
         },
-        backgroundColor: const Color(0xFF4A47DC),
+        backgroundColor: AppTheme.primaryColor,
         child: const Icon(Icons.add),
       ),
     );

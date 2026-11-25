@@ -3,6 +3,8 @@ import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:ladimas/core/theme/app_theme.dart';
+
 class NikDropdownField extends StatefulWidget {
   final TextEditingController nikController;
   final TextEditingController nameController;
@@ -67,26 +69,71 @@ class _NikDropdownFieldState extends State<NikDropdownField> {
     }).toList();
   }
 
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF475569),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _decoration({
+    String? hint,
+    Widget? suffixIcon,
+    bool readOnly = false,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+      suffixIcon: suffixIcon,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(10)),
+        borderSide: BorderSide(color: Color(0xFF1E3A8A), width: 1.5),
+      ),
+      filled: true,
+      fillColor: readOnly ? const Color(0xFFF8FAFC) : Colors.white,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildLabel('NIK'),
         TextField(
           controller: widget.nikController,
-          decoration: InputDecoration(
-            labelText: 'NIK',
-            hintText: 'Cari berdasarkan NIK atau nama',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+          decoration: _decoration(
+            hint: 'Cari berdasarkan NIK atau nama',
             suffixIcon: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                   )
-                : const Icon(Icons.search),
-            border: const OutlineInputBorder(),
+                : const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
           ),
           onChanged: (value) {
             setState(() {
@@ -96,43 +143,61 @@ class _NikDropdownFieldState extends State<NikDropdownField> {
         ),
         if (_searchQuery.isNotEmpty)
           Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            margin: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            constraints: const BoxConstraints(maxHeight: 260),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Column(
-              children: _getFilteredResidents().map((resident) {
-                return ListTile(
-                  title: Text(resident['name']),
-                  subtitle: Text(resident['nik']),
-                  onTap: () {
-                    widget.nikController.text = resident['nik'];
-                    widget.nameController.text = resident['name'];
-                    widget.onSelected(resident['nik'], resident['name']);
-                    setState(() => _searchQuery = '');
-                  },
-                );
-              }).toList(),
+            child: SingleChildScrollView(
+              child: Column(
+                children: _getFilteredResidents().map((resident) {
+                  return ListTile(
+                    dense: true,
+                    title: Text(
+                      resident['name'],
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    subtitle: Text(
+                      resident['nik'],
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                    onTap: () {
+                      widget.nikController.text = resident['nik'];
+                      widget.nameController.text = resident['name'];
+                      widget.onSelected(resident['nik'], resident['name']);
+                      setState(() => _searchQuery = '');
+                    },
+                  );
+                }).toList(),
+              ),
             ),
           ),
         const SizedBox(height: 16),
+        _buildLabel('Nama Pemilik'),
         TextField(
           controller: widget.nameController,
-          decoration: const InputDecoration(
-            labelText: 'Nama Pemilik',
-            border: OutlineInputBorder(),
-          ),
           readOnly: true,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+          decoration: _decoration(hint: 'Terisi otomatis', readOnly: true),
         ),
       ],
     );

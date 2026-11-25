@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
-import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
-import 'package:ladimas/presentation/pages/home/penduduk_home_page.dart';
-import 'package:ladimas/presentation/pages/tagihan/tagihan_page.dart';
-import 'package:ladimas/presentation/pages/webview/document_services_webview_page.dart';
-import 'package:ladimas/presentation/pages/dataku/dataku_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -93,37 +89,33 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F6FA),
+        backgroundColor: AppTheme.whiteColor,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF4A47DC)),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text(
+          'Tambah Produk',
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Title like Usaha Saya page
-              const Padding(
-                padding: EdgeInsets.fromLTRB(0, 10, 0, 20),
-                child: Center(
-                  child: Text(
-                    'Tambah Produk',
-                    style: TextStyle(
-                      color: Color(0xFF4A47DC),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-              ),
               // Foto Barang
               _buildFotoBarang(),
               const SizedBox(height: 20),
@@ -142,111 +134,12 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
               ),
               const SizedBox(height: 16),
 
-              // Klasifikasi
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: DropdownButtonFormField<String>(
-                  value: _selectedKlasifikasi.isEmpty
-                      ? null
-                      : _selectedKlasifikasi,
-                  items: _klassOptions
-                      .map((k) => DropdownMenuItem<String>(
-                            value: k,
-                            child: Text(k),
-                          ))
-                      .toList(),
-                  hint: const Text('Pilih klasifikasi'),
-                  onChanged: (value) async {
-                    final newKlas = (value ?? '').toString();
-                    setState(() {
-                      _selectedKlasifikasi = newKlas;
-                      _jenisOptions = [];
-                      _selectedJenisId = null;
-                    });
-                    try {
-                      final jenis = await _api
-                          .getJenisByKlasifikasi(newKlas.toLowerCase());
-                      if (!mounted) return;
-                      setState(() {
-                        _jenisOptions = jenis;
-                        _selectedJenisId = jenis.isNotEmpty
-                            ? ((jenis.first['id'] as num?)?.toInt())
-                            : null;
-                      });
-                    } catch (_) {}
-                  },
-                  decoration: const InputDecoration(
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
+              // Pilih Kategori (Klasifikasi)
+              _buildDropdownKlasifikasi(),
               const SizedBox(height: 16),
 
-              // Jenis
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: DropdownButtonFormField<int>(
-                  value: _selectedJenisId,
-                  isExpanded: true,
-                  selectedItemBuilder: (context) {
-                    final list = _filteredJenisByKlasifikasi();
-                    return list.map((j) {
-                      final String label =
-                          (j['jenis'] ?? j['nama'] ?? j['name'] ?? '-')
-                              .toString();
-                      return Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList();
-                  },
-                  items: [
-                    ..._filteredJenisByKlasifikasi().map((j) {
-                      final dynamic idVal =
-                          j['id'] ?? j['jenis_master_id'] ?? j['jenisId'];
-                      final int? parsedId = (idVal is num)
-                          ? idVal.toInt()
-                          : int.tryParse(idVal?.toString() ?? '');
-                      final String label =
-                          (j['jenis'] ?? j['nama'] ?? j['name'] ?? '-')
-                              .toString();
-                      if (parsedId == null)
-                        return const DropdownMenuItem<int>(
-                            value: null, child: Text('-'));
-                      return DropdownMenuItem<int>(
-                        value: parsedId,
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    })
-                  ],
-                  onChanged: (v) => setState(() => _selectedJenisId = v),
-                  decoration: const InputDecoration(
-                    labelText: 'Jenis',
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    border: InputBorder.none,
-                  ),
-                  hint: const Text('Pilih jenis'),
-                ),
-              ),
+              // Pilih Jenis
+              _buildDropdownJenis(),
               const SizedBox(height: 16),
 
               // Deskripsi
@@ -267,7 +160,7 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
               _buildTextField(
                 label: 'Harga',
                 controller: _hargaController,
-                hintText: 'Masukkan harga',
+                hintText: 'Masukkan harga produk',
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -298,88 +191,19 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 28),
 
               // Tombol Tambah
               _buildTambahButton(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: const Color(0xFF4A47DC),
-        unselectedItemColor: Colors.grey,
-        currentIndex: 1, // Tambah Produk
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.storefront_sharp, size: 28),
-              label: 'Tambah Produk'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.info_outline, size: 28), label: 'Portal'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_2, size: 28), label: 'Dataku'),
-        ],
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BerandaPage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-            case 1:
-              // Current page - Tambah Produk
-              break;
-            case 2:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PendudukHomePage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-            case 3:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TagihanPage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-            case 4:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      DocumentServicesWebViewPage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-            case 5:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DatakuPage(penduduk: widget.penduduk),
-                ),
-              );
-              break;
-          }
-        },
-      ),
     );
   }
 
+  // Widget Upload Foto
   Widget _buildFotoBarang() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -387,59 +211,90 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         const Text(
           'Foto Barang',
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () async {
-                final XFile? xfile =
-                    await _picker.pickImage(source: ImageSource.gallery);
-                if (xfile != null) {
-                  setState(() => _pickedImage = File(xfile.path));
-                }
-              },
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: _pickedImage == null
-                    ? const Center(
-                        child: Icon(
-                          Icons.image_outlined,
-                          size: 32,
-                          color: Colors.grey,
-                        ),
-                      )
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(_pickedImage!, fit: BoxFit.cover),
-                      ),
-              ),
+        GestureDetector(
+          onTap: () async {
+            final XFile? xfile =
+                await _picker.pickImage(source: ImageSource.gallery);
+            if (xfile != null) {
+              setState(() => _pickedImage = File(xfile.path));
+            }
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!, width: 1),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text('Tambah Foto',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4A47DC),
-                    fontWeight: FontWeight.w500,
-                  )),
-            )
-          ],
+            child: _pickedImage == null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.image_outlined,
+                        size: 40,
+                        color: Colors.grey[800],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Choose a photo',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'JPG, JPEG, PNG',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCE6FF),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFF8BAEFA)),
+                        ),
+                        child: const Text(
+                          'Explore File',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      _pickedImage!,
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+          ),
         ),
       ],
     );
   }
 
+  // Widget Input Text Custom
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
@@ -453,9 +308,9 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
@@ -465,29 +320,30 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
           validator: validator,
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(color: Colors.grey[400]),
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
             filled: true,
             fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF4A47DC)),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.primaryColor),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         ),
       ],
     );
   }
 
+  // Widget Text Area Custom
   Widget _buildTextAreaField({
     required String label,
     required TextEditingController controller,
@@ -500,88 +356,206 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           validator: validator,
-          maxLines: 4,
+          maxLines: 3,
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(color: Colors.grey[400]),
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
             filled: true,
             fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF4A47DC)),
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.primaryColor),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDropdownField({
-    required String label,
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
+  // Dropdown Pilih Kategori dengan Menu Popup Ter-Styling
+  Widget _buildDropdownKlasifikasi() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+        const Text(
+          'Pilih Kategori',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: DropdownButtonFormField<String>(
-            value: value,
-            onChanged: onChanged,
+            value: _selectedKlasifikasi.isEmpty ? null : _selectedKlasifikasi,
+            dropdownColor: Colors.white,
+            elevation: 3,
+            borderRadius: BorderRadius.circular(12),
+            menuMaxHeight: 250,
+            items: _klassOptions
+                .map((k) => DropdownMenuItem<String>(
+                      value: k,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Text(
+                          k,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ))
+                .toList(),
+            hint: Text('Pilih kategori',
+                style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
+            onChanged: (value) async {
+              final newKlas = (value ?? '').toString();
+              setState(() {
+                _selectedKlasifikasi = newKlas;
+                _jenisOptions = [];
+                _selectedJenisId = null;
+              });
+              try {
+                final jenis =
+                    await _api.getJenisByKlasifikasi(newKlas.toLowerCase());
+                if (!mounted) return;
+                setState(() {
+                  _jenisOptions = jenis;
+                  _selectedJenisId = jenis.isNotEmpty
+                      ? ((jenis.first['id'] as num?)?.toInt())
+                      : null;
+                });
+              } catch (_) {}
+            },
             decoration: const InputDecoration(
               contentPadding:
-                  EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: InputBorder.none,
             ),
-            items: items.map((String item) {
-              return DropdownMenuItem<String>(
-                value: item,
-                child: Text(item),
-              );
-            }).toList(),
           ),
         ),
       ],
     );
   }
 
+  // Dropdown Pilih Jenis dengan Menu Popup Ter-Styling
+  Widget _buildDropdownJenis() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pilih Jenis',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: DropdownButtonFormField<int>(
+            value: _selectedJenisId,
+            isExpanded: true,
+            dropdownColor: Colors.white,
+            elevation: 3,
+            borderRadius: BorderRadius.circular(12),
+            menuMaxHeight: 250,
+            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
+            hint: Text('Pilih jenis',
+                style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+            selectedItemBuilder: (context) {
+              final list = _filteredJenisByKlasifikasi();
+              return list.map((j) {
+                final String label =
+                    (j['jenis'] ?? j['nama'] ?? j['name'] ?? '-').toString();
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  ),
+                );
+              }).toList();
+            },
+            items: [
+              ..._filteredJenisByKlasifikasi().map((j) {
+                final dynamic idVal =
+                    j['id'] ?? j['jenis_master_id'] ?? j['jenisId'];
+                final int? parsedId = (idVal is num)
+                    ? idVal.toInt()
+                    : int.tryParse(idVal?.toString() ?? '');
+                final String label =
+                    (j['jenis'] ?? j['nama'] ?? j['name'] ?? '-').toString();
+                if (parsedId == null) {
+                  return const DropdownMenuItem<int>(
+                      value: null, child: Text('-'));
+                }
+                return DropdownMenuItem<int>(
+                  value: parsedId,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                );
+              })
+            ],
+            onChanged: (v) => setState(() => _selectedJenisId = v),
+            decoration: const InputDecoration(
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: InputBorder.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Tombol Tambah Produk Full-Width
   Widget _buildTambahButton() {
-    return Align(
-      alignment: Alignment.centerRight,
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
       child: ElevatedButton(
         onPressed: _submitting
             ? null
@@ -617,20 +591,29 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                 }
               },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4A47DC),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          backgroundColor: AppTheme.primaryColor,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
-        child: const Text(
-          'Tambah',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        child: _submitting
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                'Tambah',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
       ),
     );
   }

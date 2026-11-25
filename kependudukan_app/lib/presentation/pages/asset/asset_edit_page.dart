@@ -1,3 +1,4 @@
+import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,12 +11,10 @@ import 'package:ladimas/presentation/widgets/asset/asset_form_dropdown.dart';
 import 'package:ladimas/presentation/widgets/asset/asset_form_image_picker.dart';
 import 'package:ladimas/presentation/widgets/asset/asset_form_text_field.dart';
 import 'package:ladimas/presentation/widgets/common/location_map_component.dart';
-import 'package:ladimas/presentation/widgets/custom_button.dart';
 import 'package:ladimas/presentation/widgets/asset/nik_dropdown_field.dart';
 import 'package:get_it/get_it.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 
 class AssetEditPage extends StatefulWidget {
@@ -90,7 +89,9 @@ class _AssetEditPageState extends State<AssetEditPage> {
         await _loadAssetData();
       }
     } catch (e) {
-      MessageService.showErrorSnackBar(context, e.toString());
+      if (mounted) {
+        MessageService.showErrorSnackBar(context, e.toString());
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -127,9 +128,43 @@ class _AssetEditPageState extends State<AssetEditPage> {
             }
           }
         });
+
+        // Load wilayah data secara berurutan
+        if (asset.provinceId != null) {
+          final province = _provinces.firstWhere(
+            (p) => p['id'].toString() == asset.provinceId.toString(),
+            orElse: () => {},
+          );
+          if (province.containsKey('code')) {
+            await _loadDistricts(province['code']);
+
+            if (asset.districtId != null) {
+              final district = _districts.firstWhere(
+                (d) => d['id'].toString() == asset.districtId.toString(),
+                orElse: () => {},
+              );
+              if (district.containsKey('code')) {
+                await _loadSubdistricts(district['code']);
+
+                if (asset.subdistrictId != null) {
+                  final subdistrict = _subdistricts.firstWhere(
+                    (sd) =>
+                        sd['id'].toString() == asset.subdistrictId.toString(),
+                    orElse: () => {},
+                  );
+                  if (subdistrict.containsKey('code')) {
+                    await _loadVillages(subdistrict['code']);
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     } catch (e) {
-      MessageService.showErrorSnackBar(context, e.toString());
+      if (mounted) {
+        MessageService.showErrorSnackBar(context, e.toString());
+      }
     }
   }
 
@@ -149,7 +184,6 @@ class _AssetEditPageState extends State<AssetEditPage> {
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       try {
-        // Create asset data
         final Map<String, dynamic> assetData = {
           'nama_aset': _namaAsetController.text,
           'nik_pemilik': _nikController.text,
@@ -168,7 +202,6 @@ class _AssetEditPageState extends State<AssetEditPage> {
         };
 
         if (_isEditing) {
-          // Update existing asset
           await _assetCubit.updateAssetWithImages(
             widget.assetId!,
             assetData,
@@ -176,7 +209,6 @@ class _AssetEditPageState extends State<AssetEditPage> {
             _fotoSamping,
           );
         } else {
-          // Create new asset
           await _assetCubit.createAssetWithImages(
             assetData,
             _fotoDepan,
@@ -192,7 +224,6 @@ class _AssetEditPageState extends State<AssetEditPage> {
                 : 'Aset berhasil ditambahkan',
           );
 
-          // Refresh data before navigating back
           await _assetCubit.loadAssets();
 
           if (mounted) {
@@ -201,7 +232,6 @@ class _AssetEditPageState extends State<AssetEditPage> {
         }
       } catch (e) {
         if (mounted) {
-          // Display error message with proper formatting for validation errors
           MessageService.showErrorDialog(
             context,
             e.toString().replaceAll('. ', '.\n'),
@@ -212,7 +242,6 @@ class _AssetEditPageState extends State<AssetEditPage> {
         }
       }
     } else {
-      // Form validation failed
       MessageService.showErrorSnackBar(
         context,
         'Harap periksa kembali form Anda',
@@ -223,15 +252,22 @@ class _AssetEditPageState extends State<AssetEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        centerTitle: true,
         title: Text(
           _isEditing ? 'Edit Aset' : 'Tambah Aset',
-          style:
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
       ),
       body: BlocConsumer<AssetCubit, AssetState>(
         bloc: _assetCubit,
@@ -253,13 +289,17 @@ class _AssetEditPageState extends State<AssetEditPage> {
     final isSubmitting = state is AssetSubmitting || _isLoading;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('Informasi Pemilik'),
+            // ------------------------------------------------ Informasi Pemilik
+            _buildSectionHeader(
+              'Informasi Pemilik',
+              Icons.person_outline_rounded,
+            ),
             NikDropdownField(
               nikController: _nikController,
               nameController: _namaPemilikController,
@@ -268,225 +308,283 @@ class _AssetEditPageState extends State<AssetEditPage> {
                 _namaPemilikController.text = name;
               },
             ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Informasi Aset'),
-            AssetFormTextField(
-              controller: _namaAsetController,
-              label: 'Nama Aset',
-              validator: (value) =>
-                  value!.isEmpty ? 'Nama aset harus diisi' : null,
+            _buildDivider(),
+
+            // -------------------------------------------------- Informasi Aset
+            _buildSectionHeader(
+              'Informasi Aset',
+              Icons.inventory_2_outlined,
             ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedKlasifikasiId,
-              items: _klasifikasi.map((item) {
-                return DropdownMenuItem(
-                  value: item['id'].toString(),
-                  child: Text(item['jenis_klasifikasi']),
-                );
-              }).toList(),
-              hint: 'Pilih Klasifikasi',
-              onChanged: (value) {
-                setState(() {
-                  _selectedKlasifikasiId = value;
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'Klasifikasi harus dipilih' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedJenisAsetId,
-              items: _jenisAset.map((item) {
-                return DropdownMenuItem(
-                  value: item['id'].toString(),
-                  child: Text(item['jenis_aset']),
-                );
-              }).toList(),
-              hint: 'Pilih Jenis Aset',
-              onChanged: (value) {
-                setState(() {
-                  _selectedJenisAsetId = value;
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'Jenis aset harus dipilih' : null,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Alamat'),
-            AssetFormTextField(
-              controller: _alamatController,
-              label: 'Alamat',
-              maxLines: 3,
-              validator: (value) =>
-                  value!.isEmpty ? 'Alamat harus diisi' : null,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: AssetFormTextField(
-                    controller: _rtController,
-                    label: 'RT',
-                    keyboardType: TextInputType.number,
-                    validator: (value) =>
-                        value!.isEmpty ? 'RT harus diisi' : null,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: AssetFormTextField(
-                    controller: _rwController,
-                    label: 'RW',
-                    keyboardType: TextInputType.number,
-                    validator: (value) =>
-                        value!.isEmpty ? 'RW harus diisi' : null,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedProvinceId,
-              items: _provinces.map((province) {
-                return DropdownMenuItem(
-                  value: province['id'].toString(),
-                  child: Text(province['name']),
-                );
-              }).toList(),
-              hint: 'Pilih Provinsi',
-              onChanged: (value) {
-                setState(() {
-                  _selectedProvinceId = value;
-                  _selectedDistrictId = null;
-                  _selectedSubdistrictId = null;
-                  _selectedVillageId = null;
-                });
-                if (value != null) {
-                  final province = _provinces.firstWhere(
-                      (element) => element['id'].toString() == value);
-                  _loadDistricts(province['code']);
-                }
-              },
-              validator: (value) =>
-                  value == null ? 'Provinsi harus dipilih' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedDistrictId,
-              items: _districts.map((district) {
-                return DropdownMenuItem(
-                  value: district['id'].toString(),
-                  child: Text(district['name']),
-                );
-              }).toList(),
-              hint: 'Pilih Kabupaten/Kota',
-              onChanged: (value) {
-                setState(() {
-                  _selectedDistrictId = value;
-                  _selectedSubdistrictId = null;
-                  _selectedVillageId = null;
-                });
-                if (value != null) {
-                  final district = _districts.firstWhere(
-                      (element) => element['id'].toString() == value);
-                  _loadSubdistricts(district['code']);
-                }
-              },
-              validator: (value) =>
-                  value == null ? 'Kabupaten/Kota harus dipilih' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedSubdistrictId,
-              items: _subdistricts.map((subdistrict) {
-                return DropdownMenuItem(
-                  value: subdistrict['id'].toString(),
-                  child: Text(subdistrict['name']),
-                );
-              }).toList(),
-              hint: 'Pilih Kecamatan',
-              onChanged: (value) {
-                setState(() {
-                  _selectedSubdistrictId = value;
-                  _selectedVillageId = null;
-                });
-                if (value != null) {
-                  final subdistrict = _subdistricts.firstWhere(
-                      (element) => element['id'].toString() == value);
-                  _loadVillages(subdistrict['code']);
-                }
-              },
-              validator: (value) =>
-                  value == null ? 'Kecamatan harus dipilih' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedVillageId,
-              items: _villages.map((village) {
-                return DropdownMenuItem(
-                  value: village['id'].toString(),
-                  child: Text(village['name']),
-                );
-              }).toList(),
-              hint: 'Pilih Desa/Kelurahan',
-              onChanged: (value) {
-                setState(() {
-                  _selectedVillageId = value;
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'Desa/Kelurahan harus dipilih' : null,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Lokasi'),
-            const Text(
-              'Lokasi Aset',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
+            _gap(
+              AssetFormTextField(
+                controller: _namaAsetController,
+                label: 'Nama Aset',
+                validator: (value) =>
+                    value!.isEmpty ? 'Nama aset harus diisi' : null,
               ),
             ),
-            const SizedBox(height: 8),
-            LocationMapComponent(
-              initialPosition: _assetPosition,
-              mode: MapMode.select,
-              onLocationSelected: (position) {
-                setState(() {
-                  _assetPosition = position;
-                  _assetLatitude = position.latitude;
-                  _assetLongitude = position.longitude;
-                });
-              },
-              height: 250,
+            _gap(
+              AssetFormDropdown(
+                label: 'Klasifikasi',
+                value: _selectedKlasifikasiId,
+                items: _klasifikasi.map((item) {
+                  return DropdownMenuItem(
+                    value: item['id'].toString(),
+                    child: Text(
+                      item['jenis_klasifikasi'],
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                hint: 'Pilih Klasifikasi',
+                onChanged: (value) {
+                  setState(() {
+                    _selectedKlasifikasiId = value;
+                  });
+                },
+                validator: (value) =>
+                    value == null ? 'Klasifikasi harus dipilih' : null,
+              ),
             ),
-            const SizedBox(height: 8),
+            _gap(
+              AssetFormDropdown(
+                label: 'Jenis Aset',
+                value: _selectedJenisAsetId,
+                items: _jenisAset.map((item) {
+                  return DropdownMenuItem(
+                    value: item['id'].toString(),
+                    child: Text(
+                      item['jenis_aset'],
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                hint: 'Pilih Jenis Aset',
+                onChanged: (value) {
+                  setState(() {
+                    _selectedJenisAsetId = value;
+                  });
+                },
+                validator: (value) =>
+                    value == null ? 'Jenis aset harus dipilih' : null,
+              ),
+            ),
+            _buildDivider(),
+
+            // ----------------------------------------------------------- Alamat
+            _buildSectionHeader('Alamat', Icons.home_outlined),
+            _gap(
+              AssetFormTextField(
+                controller: _alamatController,
+                label: 'Alamat',
+                maxLines: 3,
+                validator: (value) =>
+                    value!.isEmpty ? 'Alamat harus diisi' : null,
+              ),
+            ),
+            _gap(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: AssetFormTextField(
+                      controller: _rtController,
+                      label: 'RT',
+                      keyboardType: TextInputType.number,
+                      validator: (value) =>
+                          value!.isEmpty ? 'RT harus diisi' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AssetFormTextField(
+                      controller: _rwController,
+                      label: 'RW',
+                      keyboardType: TextInputType.number,
+                      validator: (value) =>
+                          value!.isEmpty ? 'RW harus diisi' : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _gap(
+              AssetFormDropdown(
+                label: 'Provinsi',
+                value: _selectedProvinceId,
+                items: _provinces.map((province) {
+                  return DropdownMenuItem(
+                    value: province['id'].toString(),
+                    child: Text(
+                      province['name'],
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                hint: 'Pilih Provinsi',
+                onChanged: (value) {
+                  setState(() {
+                    _selectedProvinceId = value;
+                    _selectedDistrictId = null;
+                    _selectedSubdistrictId = null;
+                    _selectedVillageId = null;
+                  });
+                  if (value != null) {
+                    final province = _provinces.firstWhere(
+                        (element) => element['id'].toString() == value);
+                    _loadDistricts(province['code']);
+                  }
+                },
+                validator: (value) =>
+                    value == null ? 'Provinsi harus dipilih' : null,
+              ),
+            ),
+            _gap(
+              AssetFormDropdown(
+                label: 'Kabupaten/Kota',
+                value: _selectedDistrictId,
+                items: _districts.map((district) {
+                  return DropdownMenuItem(
+                    value: district['id'].toString(),
+                    child: Text(
+                      district['name'],
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                hint: 'Pilih Kabupaten/Kota',
+                onChanged: (value) {
+                  setState(() {
+                    _selectedDistrictId = value;
+                    _selectedSubdistrictId = null;
+                    _selectedVillageId = null;
+                  });
+                  if (value != null) {
+                    final district = _districts.firstWhere(
+                        (element) => element['id'].toString() == value);
+                    _loadSubdistricts(district['code']);
+                  }
+                },
+                validator: (value) =>
+                    value == null ? 'Kabupaten/Kota harus dipilih' : null,
+              ),
+            ),
+            _gap(
+              AssetFormDropdown(
+                label: 'Kecamatan',
+                value: _selectedSubdistrictId,
+                items: _subdistricts.map((subdistrict) {
+                  return DropdownMenuItem(
+                    value: subdistrict['id'].toString(),
+                    child: Text(
+                      subdistrict['name'],
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                hint: 'Pilih Kecamatan',
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSubdistrictId = value;
+                    _selectedVillageId = null;
+                  });
+                  if (value != null) {
+                    final subdistrict = _subdistricts.firstWhere(
+                        (element) => element['id'].toString() == value);
+                    _loadVillages(subdistrict['code']);
+                  }
+                },
+                validator: (value) =>
+                    value == null ? 'Kecamatan harus dipilih' : null,
+              ),
+            ),
+            _gap(
+              AssetFormDropdown(
+                label: 'Desa/Kelurahan',
+                value: _selectedVillageId,
+                items: _villages.map((village) {
+                  return DropdownMenuItem(
+                    value: village['id'].toString(),
+                    child: Text(
+                      village['name'],
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                hint: 'Pilih Desa/Kelurahan',
+                onChanged: (value) {
+                  setState(() {
+                    _selectedVillageId = value;
+                  });
+                },
+                validator: (value) =>
+                    value == null ? 'Desa/Kelurahan harus dipilih' : null,
+              ),
+            ),
+            _buildDivider(),
+
+            // ----------------------------------------------------------- Lokasi
+            _buildSectionHeader('Lokasi', Icons.location_on_outlined),
+            _buildLabel('Titik Lokasi Aset pada Peta'),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: SizedBox(
+                  height: 250,
+                  child: LocationMapComponent(
+                    initialPosition: _assetPosition,
+                    mode: MapMode.select,
+                    onLocationSelected: (position) {
+                      setState(() {
+                        _assetPosition = position;
+                        _assetLatitude = position.latitude;
+                        _assetLongitude = position.longitude;
+                      });
+                    },
+                    height: 250,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    'Latitude: ${_assetLatitude.toStringAsFixed(6)}',
-                    style: TextStyle(color: Colors.grey.shade700),
+                  child: _buildCoordinateChip(
+                    'Latitude',
+                    _assetLatitude.toStringAsFixed(6),
                   ),
                 ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    'Longitude: ${_assetLongitude.toStringAsFixed(6)}',
-                    style: TextStyle(color: Colors.grey.shade700),
-                    textAlign: TextAlign.right,
+                  child: _buildCoordinateChip(
+                    'Longitude',
+                    _assetLongitude.toStringAsFixed(6),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Foto Aset'),
+            _buildDivider(),
+
+            // --------------------------------------------------------- Foto Aset
+            _buildSectionHeader(
+              'Foto Aset',
+              Icons.photo_camera_outlined,
+            ),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: AssetFormImagePicker(
                     label: 'Foto Depan',
-                    initialImageUrl: null,
+                    initialImageUrl: state is AssetDetailLoaded &&
+                            state.asset.fotoDepan != null
+                        ? AppConstants.storageFileUrl(state.asset.fotoDepan)
+                        : null,
                     onImageSelected: (image) {
                       setState(() {
                         _fotoDepan = image;
@@ -494,11 +592,14 @@ class _AssetEditPageState extends State<AssetEditPage> {
                     },
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: AssetFormImagePicker(
                     label: 'Foto Samping',
-                    initialImageUrl: null,
+                    initialImageUrl: state is AssetDetailLoaded &&
+                            state.asset.fotoSamping != null
+                        ? AppConstants.storageFileUrl(state.asset.fotoSamping)
+                        : null,
                     onImageSelected: (image) {
                       setState(() {
                         _fotoSamping = image;
@@ -508,29 +609,168 @@ class _AssetEditPageState extends State<AssetEditPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
-            CustomButton(
-              text: 'Simpan',
-              onPressed: _submitForm,
-              isLoading: isSubmitting,
+            const SizedBox(height: 28),
+
+            // ----------------------------------------------------------- Tombol
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: isSubmitting ? null : _submitForm,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor:
+                      AppTheme.primaryColor.withValues(alpha: 0.6),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : Text(
+                        _isEditing ? 'Simpan Perubahan' : 'Simpan Aset',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // ------------------------------------------------------ Kotak info
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: AppTheme.primaryColor,
+                    size: 20,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Pastikan data aset, alamat, dan lokasi pada peta sudah benar sebelum disimpan.',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _gap(Widget child) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 16),
+      child: child,
+    );
+  }
+
+  Widget _buildDivider() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Divider(color: Color(0xFFF1F5F9), thickness: 1.5),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 2),
       child: Text(
-        title,
+        text,
         style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppTheme.primaryColor,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF475569),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppTheme.primaryColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoordinateChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -596,15 +836,30 @@ class _AssetEditPageState extends State<AssetEditPage> {
     }
   }
 
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-API-Key': AppConstants.apiKey,
+    };
+    try {
+      final authLocalStorage = GetIt.instance<AuthLocalStorage>();
+      final rawToken = await authLocalStorage.getStoredToken();
+      if (rawToken != null && rawToken.isNotEmpty) {
+        final token =
+            rawToken.contains('|') ? rawToken.split('|')[1] : rawToken;
+        headers['Authorization'] = 'Bearer $token';
+      }
+    } catch (_) {}
+    return headers;
+  }
+
   Future<void> _loadKlasifikasi() async {
     try {
+      final headers = await _getAuthHeaders();
       final response = await http.get(
         Uri.parse('${AppConstants.authApiUrl}/klasifikasi'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-API-Key': AppConstants.apiKey,
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -621,20 +876,19 @@ class _AssetEditPageState extends State<AssetEditPage> {
             'Failed to load klasifikasi. Status: ${response.statusCode}');
       }
     } catch (e) {
-      MessageService.showErrorSnackBar(
-          context, 'Gagal memuat data klasifikasi: $e');
+      if (mounted) {
+        MessageService.showErrorSnackBar(
+            context, 'Gagal memuat data klasifikasi: $e');
+      }
     }
   }
 
   Future<void> _loadJenisAset() async {
     try {
+      final headers = await _getAuthHeaders();
       final response = await http.get(
         Uri.parse('${AppConstants.authApiUrl}/jenis-aset'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-API-Key': AppConstants.apiKey,
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -651,31 +905,10 @@ class _AssetEditPageState extends State<AssetEditPage> {
             'Failed to load jenis aset. Status: ${response.statusCode}');
       }
     } catch (e) {
-      MessageService.showErrorSnackBar(
-          context, 'Gagal memuat data jenis aset: $e');
-    }
-  }
-
-  Future<void> _pickImage(bool isDepan) async {
-    final picker = ImagePicker();
-    try {
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        imageQuality: 80,
-      );
-
-      if (image != null) {
-        setState(() {
-          if (isDepan) {
-            _fotoDepan = File(image.path);
-          } else {
-            _fotoSamping = File(image.path);
-          }
-        });
+      if (mounted) {
+        MessageService.showErrorSnackBar(
+            context, 'Gagal memuat data jenis aset: $e');
       }
-    } catch (e) {
-      MessageService.showErrorSnackBar(context, 'Gagal memilih gambar: $e');
     }
   }
 }

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF4A47DC);
+  static const Color primaryColor = Color(0xFF00338B);
   static const Color secondaryColor = Color(0xFF3F3AC6);
   static const Color backgroundColor = Color(0xFFF5F6FA);
   static const Color errorColor = Colors.red;
+  static const Color whiteColor = Colors.white;
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -27,7 +28,7 @@ class AppTheme {
         filled: true,
         fillColor: Colors.white,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 8,
         shadowColor: Colors.black26,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/domain/repositories/auth_repository.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
@@ -31,7 +32,6 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   @override
   void initState() {
     super.initState();
-    // Jika ada data biodata atau penduduk, gunakan sebagai fallback sementara
     if (widget.biodata != null || widget.penduduk != null) {
       _profileData = _normalizeProfileData({});
     }
@@ -46,13 +46,10 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
 
     try {
       final repository = GetIt.instance<AuthRepository>();
-
-      // Coba ambil data dari user profile dengan token authentication terlebih dahulu
       final profileResult = await repository.getUserProfile();
 
       profileResult.fold(
         (failure) {
-          // Jika gagal, fallback ke getPendudukDetail
           _loadPendudukDetail(repository);
         },
         (data) {
@@ -97,7 +94,6 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   }
 
   Map<String, dynamic> _normalizeProfileData(Map<String, dynamic> data) {
-    // Normalize data structure untuk kompatibilitas dengan kedua API
     return {
       'nik': data['nik']?.toString() ??
           data['id']?.toString() ??
@@ -149,7 +145,6 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
           widget.biodata?['no_hp']?.toString() ??
           widget.penduduk?.noHp ??
           '-',
-      // Tambahkan field lain yang mungkin ada
       'blood_type': data['blood_type']?.toString() ??
           data['golongan_darah']?.toString() ??
           '-',
@@ -174,42 +169,52 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
     if (dateString == null || dateString.isEmpty) {
       return '-';
     }
-    try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('dd MMMM yyyy', 'id_ID').format(date);
-    } catch (e) {
-      return dateString;
-    }
+    return AppDateFormatter.formatDate(dateString);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
           'Data Profil',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Color(0xFF1E3A8A),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        backgroundColor: AppTheme.primaryColor,
+        centerTitle: true,
+        backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
-      body: _buildBody(),
+      // Cukup gunakan SingleChildScrollView satu kali di sini
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: _buildBody(),
+      ),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+      return const Padding(
+        padding: EdgeInsets.only(top: 100),
+        child: Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryColor),
+        ),
       );
     }
 
     if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+      return Padding(
+        padding: const EdgeInsets.only(top: 80),
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -235,27 +240,22 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
   }
 
   Widget _buildProfileContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ProfileHeader(
-            name: _profileData?['full_name'] ?? 'Tidak ada nama',
-            nik: _profileData?['nik']?.toString() ?? '-',
-          ),
-          const SizedBox(height: 24),
-
-          // Update Phone & Password Form
-          UpdatePhonePasswordForm(
-            currentPhone: _profileData?['no_hp']?.toString() ?? '-',
-            onSuccess: () {
-              // Reload profile data after successful update
-              _loadProfileData();
-            },
-          ),
-        ],
-      ),
+    // Hapus SingleChildScrollView & Padding ganda di sini
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ProfileHeader(
+          name: _profileData?['full_name'] ?? 'Tidak ada nama',
+          nik: _profileData?['nik']?.toString() ?? '-',
+        ),
+        const SizedBox(height: 12), // Jarak disesuaikan jadi 12 agar rapat
+        UpdatePhonePasswordForm(
+          currentPhone: _profileData?['no_hp']?.toString() ?? '-',
+          onSuccess: () {
+            _loadProfileData();
+          },
+        ),
+      ],
     );
   }
 }

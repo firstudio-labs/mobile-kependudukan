@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/data/datasources/admin_tagihan_api_service.dart';
 import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'package:ladimas/data/datasources/penduduk_api_service.dart';
@@ -44,6 +45,14 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
         client: http.Client(), authLocalStorage: AuthLocalStorage());
     _pendudukApi = PendudukApiService(client: http.Client());
     _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    _nominalCtrl.dispose();
+    _ketCtrl.dispose();
+    _tanggalCtrl.dispose();
+    super.dispose();
   }
 
   List<Map<String, dynamic>> _filteredPenduduk() {
@@ -93,7 +102,6 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
         await _loadSubKategoriDropdown(_selectedKategoriId!);
       }
 
-      // Set default tanggal ke hari ini saat mode tambah (create)
       if (widget.current == null && _tanggalCtrl.text.trim().isEmpty) {
         final now = DateTime.now();
         final y = now.year.toString().padLeft(4, '0');
@@ -117,7 +125,6 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
     final villageId = _extractVillageId(widget.adminData);
     List<Map<String, dynamic>> list = [];
     if (villageId != null) {
-      // gunakan extended agar ada family_status untuk filter KK
       try {
         list = await _pendudukApi.getCitizensByVillageIdLiteExtended(villageId);
       } catch (_) {
@@ -171,7 +178,7 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
         Map<String, dynamic>? found;
         for (final e in _kategoriDropdown) {
           if (e is Map && (e['id'] as num?)?.toInt() == kategoriId) {
-            found = Map<String, dynamic>.from(e as Map);
+            found = Map<String, dynamic>.from(e);
             break;
           }
         }
@@ -187,7 +194,7 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
       Map<String, dynamic>? found;
       for (final e in _kategoriDropdown) {
         if (e is Map && (e['id'] as num?)?.toInt() == kategoriId) {
-          found = Map<String, dynamic>.from(e as Map);
+          found = Map<String, dynamic>.from(e);
           break;
         }
       }
@@ -247,7 +254,6 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
     final ymd = _normalizeDateYmd(_tanggalCtrl.text.trim());
     try {
       if (widget.current == null) {
-        // create mode: gunakan bulk jika multi, single jika 1
         final selected =
             _selectedNiks.where((e) => e.trim().isNotEmpty).toList();
         if (selected.isEmpty) {
@@ -279,7 +285,6 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
           );
         }
       } else {
-        // edit mode: tetap single
         if (_selectedNik == null || _selectedNik!.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Pilih NIK terlebih dahulu')));
@@ -339,7 +344,6 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
           return '$yy-$mm-$dd';
         }
       }
-      // fallback tryParse
       final dt = DateTime.tryParse(input);
       if (dt != null) {
         final yy = dt.year.toString().padLeft(4, '0');
@@ -380,37 +384,6 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
     }
   }
 
-  String _asMiddayIso8601(String input) {
-    final ymd = _normalizeDateYmd(input);
-    if (ymd.isEmpty) return ymd;
-    // gunakan 12:00:00Z untuk menghindari pergeseran tanggal saat di-UTC-kan di server
-    return '${ymd}T12:00:00.000Z';
-  }
-
-  String _asMiddayDateTime(String input) {
-    final ymd = _normalizeDateYmd(input);
-    if (ymd.isEmpty) return ymd;
-    return '$ymd 12:00:00';
-  }
-
-  String _asMiddayLocalString(String ymd) {
-    if (ymd.isEmpty) return ymd;
-    // string tanpa zona waktu (DB akan menyimpan apa adanya pada kolom DATETIME/DATE)
-    return '$ymd 12:00:00';
-  }
-
-  String _toIsoWithLocalOffset(String input) {
-    final ymd = _normalizeDateYmd(input);
-    if (ymd.isEmpty) return ymd;
-    final nowOffset = DateTime.now().timeZoneOffset; // e.g., 7:00:00.000000
-    final sign = nowOffset.isNegative ? '-' : '+';
-    final totalMinutes = nowOffset.inMinutes.abs();
-    final hh = (totalMinutes ~/ 60).toString().padLeft(2, '0');
-    final mm = (totalMinutes % 60).toString().padLeft(2, '0');
-    // gunakan jam 00:00 lokal dengan offset eksplisit
-    return '${ymd}T00:00:00$sign$hh:$mm';
-  }
-
   String _extractDateString(Map<String, dynamic> m) {
     final candidates = [
       m['tanggal'],
@@ -433,21 +406,16 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
       final dotCount = '.'.allMatches(v).length;
       final commaCount = ','.allMatches(v).length;
 
-      // Jika ada koma, anggap koma sebagai decimal dan titik ribuan
       if (commaCount > 0) {
         v = v.replaceAll('.', '').replaceAll(',', '.');
         return double.tryParse(v);
       }
 
-      // Tidak ada koma
       if (dotCount == 0) {
-        // Murni angka
         return double.tryParse(v);
       } else if (dotCount == 1) {
-        // Satu titik: anggap sebagai decimal, jangan hapus
         return double.tryParse(v);
       } else {
-        // Banyak titik: anggap ribuan, hapus semua titik
         v = v.replaceAll('.', '');
         return double.tryParse(v);
       }
@@ -456,18 +424,67 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
     }
   }
 
+  InputDecoration _inputDecoration({
+    required String labelText,
+    String? hintText,
+    required IconData prefixIcon,
+    IconData? suffixIcon,
+    String? prefixText,
+  }) {
+    return InputDecoration(
+      labelText: labelText,
+      labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+      hintText: hintText,
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+      prefixIcon: Icon(prefixIcon, color: AppTheme.primaryColor, size: 20),
+      prefixText: prefixText,
+      prefixStyle: const TextStyle(
+        color: Color(0xFF1E293B),
+        fontWeight: FontWeight.bold,
+        fontSize: 14,
+      ),
+      suffixIcon: suffixIcon != null
+          ? Icon(suffixIcon, color: const Color(0xFF64748B), size: 18)
+          : null,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(widget.current == null ? 'Tambah Tagihan' : 'Ubah Tagihan',
-            style: const TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF4A47DC),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actionsIconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
+        title: Text(
+          widget.current == null ? 'Tambah Tagihan' : 'Ubah Tagihan',
+          style: const TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
+        actionsIconTheme: const IconThemeData(color: AppTheme.primaryColor),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Muat ulang penduduk',
             onPressed: () async {
               await _loadPendudukByVillage();
@@ -477,296 +494,762 @@ class _AdminTagihanFormPageState extends State<AdminTagihanFormPage> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryColor))
           : _error != null
               ? Center(
-                  child:
-                      Text(_error!, style: const TextStyle(color: Colors.red)))
-              : Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (widget.current != null) ...[
-                          // Mode edit: tampilkan NIK read-only
-                          InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'NIK Penduduk',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                            ),
-                            child: Text(
-                              _selectedNik ?? '-',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        DropdownButtonFormField<int>(
-                          value: _selectedKategoriId,
-                          decoration:
-                              const InputDecoration(labelText: 'Kategori'),
-                          isExpanded: true,
-                          hint: const Text('Pilih Kategori'),
-                          items: _kategoriDropdown
-                              .map((e) => DropdownMenuItem<int>(
-                                    value: e['id'] as int,
-                                    child: Text(
-                                      (e['nama_kategori'] ?? '-').toString(),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (v) async {
-                            setState(() {
-                              _selectedKategoriId = v;
-                              _selectedSubKategoriId = null;
-                              _subKategoriDropdown = [];
-                            });
-                            if (v != null) {
-                              await _loadSubKategoriDropdown(v);
-                              if (mounted) setState(() {});
-                            }
-                          },
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          size: 48,
+                          color: Color(0xFFDC2626),
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<int>(
-                          value: _selectedSubKategoriId,
-                          decoration:
-                              const InputDecoration(labelText: 'Sub Kategori'),
-                          isExpanded: true,
-                          hint: const Text('Pilih Sub Kategori'),
-                          items: _subKategoriDropdown
-                              .map((e) => DropdownMenuItem<int>(
-                                    value: e['id'] as int,
-                                    child: Text(
-                                      (e['nama_sub_kategori'] ?? '-')
-                                          .toString(),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (v) => setState(() {
-                            _selectedSubKategoriId = v;
-                          }),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _nominalCtrl,
-                          decoration:
-                              const InputDecoration(labelText: 'Nominal'),
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _ketCtrl,
-                          decoration:
-                              const InputDecoration(labelText: 'Keterangan'),
-                          maxLines: 2,
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _tanggalCtrl,
-                          readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Tanggal (YYYY-MM-DD)',
-                            suffixIcon: Icon(Icons.calendar_today),
-                          ),
-                          onTap: () async {
-                            final now = DateTime.now();
-                            final initial = _parseDateOr(now);
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: initial,
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(now.year + 5, 12, 31),
-                              helpText: 'Pilih Tanggal Tagihan',
-                              cancelText: 'Batal',
-                              confirmText: 'Pilih',
-                            );
-                            if (picked != null) {
-                              final y = picked.year.toString().padLeft(4, '0');
-                              final m = picked.month.toString().padLeft(2, '0');
-                              final d = picked.day.toString().padLeft(2, '0');
-                              setState(() {
-                                _tanggalCtrl.text = '$y-$m-$d';
-                              });
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: _statusVal,
-                          decoration:
-                              const InputDecoration(labelText: 'Status'),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'pending', child: Text('Pending')),
-                            DropdownMenuItem(
-                                value: 'lunas', child: Text('Lunas')),
-                            DropdownMenuItem(
-                                value: 'belum_lunas',
-                                child: Text('Belum Lunas')),
-                          ],
-                          onChanged: (v) => setState(() {
-                            _statusVal = v ?? 'pending';
-                          }),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Color(0xFFDC2626)),
                         ),
                         const SizedBox(height: 16),
-                        if (widget.current == null) ...[
-                          const Divider(),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: SegmentedButton<String>(
-                                  segments: const [
-                                    ButtonSegment(
-                                        value: 'all',
-                                        label: Text('Semua penduduk')),
-                                    ButtonSegment(
-                                        value: 'kk',
-                                        label: Text('Kepala keluarga')),
-                                  ],
-                                  selected: {_pendudukFilter},
-                                  onSelectionChanged: (sel) {
-                                    final val = sel.first;
-                                    setState(() {
-                                      _pendudukFilter = val;
-                                      // reset seleksi yang tidak muncul setelah filter
-                                      final visibleNiks = _filteredPenduduk()
-                                          .map((e) =>
-                                              (e['nik'] ?? '').toString())
-                                          .toSet();
-                                      _selectedNiks.removeWhere(
-                                          (nik) => !visibleNiks.contains(nik));
-                                    });
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                tooltip: 'Muat ulang',
-                                icon: const Icon(Icons.refresh),
-                                onPressed: () async {
-                                  await _loadPendudukByVillage();
-                                  if (mounted) setState(() {});
-                                },
-                              )
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Pilih Penduduk (bisa lebih dari satu)',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.search),
-                              labelText: 'Cari NIK / Nama',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                            ),
-                            onChanged: (v) => setState(() {
-                              _nikSearch = v.trim().toLowerCase();
-                            }),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: _filteredPenduduk().isNotEmpty &&
-                                    _filteredPenduduk().every((e) =>
-                                        _selectedNiks.contains(
-                                            (e['nik'] ?? '').toString())),
-                                onChanged: (val) {
-                                  setState(() {
-                                    if (val == true) {
-                                      for (final e in _filteredPenduduk()) {
-                                        final nik = (e['nik'] ?? '').toString();
-                                        if (nik.isNotEmpty) {
-                                          _selectedNiks.add(nik);
-                                        }
-                                      }
-                                    } else {
-                                      for (final e in _filteredPenduduk()) {
-                                        final nik = (e['nik'] ?? '').toString();
-                                        _selectedNiks.remove(nik);
-                                      }
-                                    }
-                                  });
-                                },
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _pendudukFilter == 'kk'
-                                    ? 'Pilih semua (Kepala keluarga)'
-                                    : 'Pilih semua hasil',
-                              ),
-                              const Spacer(),
-                              Text('Terpilih: ${_selectedNiks.length}')
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 320),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: _filteredPenduduk().isEmpty
-                                ? const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(12.0),
-                                      child: Text('Tidak ada data'),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    shrinkWrap: true,
-                                    itemCount: _filteredPenduduk().length,
-                                    itemBuilder: (ctx, i) {
-                                      final e = _filteredPenduduk()[i];
-                                      final nik = (e['nik'] ?? '').toString();
-                                      final nama =
-                                          (e['full_name'] ?? '-').toString();
-                                      final checked =
-                                          _selectedNiks.contains(nik);
-                                      return CheckboxListTile(
-                                        dense: true,
-                                        value: checked,
-                                        onChanged: (val) {
-                                          setState(() {
-                                            if (val == true) {
-                                              _selectedNiks.add(nik);
-                                            } else {
-                                              _selectedNiks.remove(nik);
-                                            }
-                                          });
-                                        },
-                                        title: Text('$nama ($nik)'),
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ],
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.save),
-                            label: const Text('Simpan'),
-                            onPressed: _submit,
+                        ElevatedButton.icon(
+                          onPressed: _bootstrap,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Coba Lagi'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
                           ),
                         ),
                       ],
                     ),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x06000000),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE6F4F9),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.receipt_long_rounded,
+                                    color: AppTheme.primaryColor,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Informasi Tagihan',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            if (widget.current != null) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.person_pin_rounded,
+                                        color: AppTheme.primaryColor, size: 22),
+                                    const SizedBox(width: 10),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('NIK Penduduk (Tetap)',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF64748B))),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _selectedNik ?? '-',
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF1E293B)),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                            ],
+                            DropdownButtonFormField<int>(
+                              value: _selectedKategoriId,
+                              isExpanded: true,
+                              decoration: _inputDecoration(
+                                labelText: 'Kategori',
+                                hintText: 'Pilih Kategori',
+                                prefixIcon: Icons.category_outlined,
+                              ),
+                              items: _kategoriDropdown
+                                  .map((e) => DropdownMenuItem<int>(
+                                        value: e['id'] as int,
+                                        child: Text(
+                                          (e['nama_kategori'] ?? '-')
+                                              .toString(),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) async {
+                                setState(() {
+                                  _selectedKategoriId = v;
+                                  _selectedSubKategoriId = null;
+                                  _subKategoriDropdown = [];
+                                });
+                                if (v != null) {
+                                  await _loadSubKategoriDropdown(v);
+                                  if (mounted) setState(() {});
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 14),
+                            DropdownButtonFormField<int>(
+                              value: _selectedSubKategoriId,
+                              isExpanded: true,
+                              decoration: _inputDecoration(
+                                labelText: 'Sub Kategori',
+                                hintText: 'Pilih Sub Kategori',
+                                prefixIcon:
+                                    Icons.subdirectory_arrow_right_outlined,
+                              ),
+                              items: _subKategoriDropdown
+                                  .map((e) => DropdownMenuItem<int>(
+                                        value: e['id'] as int,
+                                        child: Text(
+                                          (e['nama_sub_kategori'] ?? '-')
+                                              .toString(),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) => setState(() {
+                                _selectedSubKategoriId = v;
+                              }),
+                            ),
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: _nominalCtrl,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              decoration: _inputDecoration(
+                                labelText: 'Nominal',
+                                hintText: 'Masukkan jumlah nominal',
+                                prefixIcon: Icons.payments_outlined,
+                                prefixText: 'Rp ',
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: _tanggalCtrl,
+                              readOnly: true,
+                              decoration: _inputDecoration(
+                                labelText: 'Tanggal Tagihan',
+                                hintText: 'YYYY-MM-DD',
+                                prefixIcon: Icons.calendar_today_outlined,
+                                suffixIcon: Icons.edit_calendar_outlined,
+                              ),
+                              onTap: () async {
+                                final now = DateTime.now();
+                                final initial = _parseDateOr(now);
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: initial,
+                                  firstDate: DateTime(2000),
+                                  lastDate: DateTime(now.year + 5, 12, 31),
+                                  helpText: 'Pilih Tanggal Tagihan',
+                                  cancelText: 'Batal',
+                                  confirmText: 'Pilih',
+                                );
+                                if (picked != null) {
+                                  final y =
+                                      picked.year.toString().padLeft(4, '0');
+                                  final m =
+                                      picked.month.toString().padLeft(2, '0');
+                                  final d =
+                                      picked.day.toString().padLeft(2, '0');
+                                  setState(() {
+                                    _tanggalCtrl.text = '$y-$m-$d';
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 14),
+                            DropdownButtonFormField<String>(
+                              value: _statusVal,
+                              decoration: _inputDecoration(
+                                labelText: 'Status Pembayaran',
+                                prefixIcon: Icons.flag_outlined,
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'pending',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.schedule_rounded,
+                                          size: 16, color: Color(0xFFD97706)),
+                                      SizedBox(width: 8),
+                                      Text('Pending (Menunggu)'),
+                                    ],
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'lunas',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.check_circle_outline_rounded,
+                                          size: 16, color: Color(0xFF059669)),
+                                      SizedBox(width: 8),
+                                      Text('Lunas'),
+                                    ],
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'belum_lunas',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.highlight_off_rounded,
+                                          size: 16, color: Color(0xFFDC2626)),
+                                      SizedBox(width: 8),
+                                      Text('Belum Lunas'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              onChanged: (v) => setState(() {
+                                _statusVal = v ?? 'pending';
+                              }),
+                            ),
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: _ketCtrl,
+                              maxLines: 2,
+                              decoration: _inputDecoration(
+                                labelText: 'Keterangan',
+                                hintText:
+                                    'Catatan atau rincian tagihan (opsional)',
+                                prefixIcon: Icons.notes_outlined,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (widget.current == null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x06000000),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE6F4F9),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.people_alt_outlined,
+                                      color: AppTheme.primaryColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Pilih Sasaran Penduduk',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF1E293B),
+                                          ),
+                                        ),
+                                        Text(
+                                          'Bisa memilih lebih dari satu penduduk',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF64748B)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Muat ulang penduduk',
+                                    icon: const Icon(Icons.refresh_rounded,
+                                        color: AppTheme.primaryColor),
+                                    onPressed: () async {
+                                      await _loadPendudukByVillage();
+                                      if (mounted) setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.all(4),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(9),
+                                        onTap: () {
+                                          setState(() {
+                                            _pendudukFilter = 'all';
+                                            final visibleNiks =
+                                                _filteredPenduduk()
+                                                    .map((e) => (e['nik'] ?? '')
+                                                        .toString())
+                                                    .toSet();
+                                            _selectedNiks.removeWhere((nik) =>
+                                                !visibleNiks.contains(nik));
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: _pendudukFilter == 'all'
+                                                ? Colors.white
+                                                : Colors.transparent,
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            boxShadow: _pendudukFilter == 'all'
+                                                ? const [
+                                                    BoxShadow(
+                                                      color: Color(0x0A000000),
+                                                      blurRadius: 4,
+                                                      offset: Offset(0, 2),
+                                                    )
+                                                  ]
+                                                : null,
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            'Semua Penduduk',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight:
+                                                  _pendudukFilter == 'all'
+                                                      ? FontWeight.bold
+                                                      : FontWeight.w500,
+                                              color: _pendudukFilter == 'all'
+                                                  ? AppTheme.primaryColor
+                                                  : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(9),
+                                        onTap: () {
+                                          setState(() {
+                                            _pendudukFilter = 'kk';
+                                            final visibleNiks =
+                                                _filteredPenduduk()
+                                                    .map((e) => (e['nik'] ?? '')
+                                                        .toString())
+                                                    .toSet();
+                                            _selectedNiks.removeWhere((nik) =>
+                                                !visibleNiks.contains(nik));
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: _pendudukFilter == 'kk'
+                                                ? Colors.white
+                                                : Colors.transparent,
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                            boxShadow: _pendudukFilter == 'kk'
+                                                ? const [
+                                                    BoxShadow(
+                                                      color: Color(0x0A000000),
+                                                      blurRadius: 4,
+                                                      offset: Offset(0, 2),
+                                                    )
+                                                  ]
+                                                : null,
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            'Kepala Keluarga',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight:
+                                                  _pendudukFilter == 'kk'
+                                                      ? FontWeight.bold
+                                                      : FontWeight.w500,
+                                              color: _pendudukFilter == 'kk'
+                                                  ? AppTheme.primaryColor
+                                                  : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                decoration: InputDecoration(
+                                  hintText: 'Cari NIK atau Nama...',
+                                  hintStyle: const TextStyle(
+                                      color: Color(0xFF94A3B8), fontSize: 13),
+                                  prefixIcon: const Icon(Icons.search_rounded,
+                                      color: Color(0xFF64748B), size: 20),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  isDense: true,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: Color(0xFFE2E8F0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: AppTheme.primaryColor,
+                                        width: 1.4),
+                                  ),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onChanged: (v) => setState(() {
+                                  _nikSearch = v.trim().toLowerCase();
+                                }),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: Checkbox(
+                                      value: _filteredPenduduk().isNotEmpty &&
+                                          _filteredPenduduk().every((e) =>
+                                              _selectedNiks.contains(
+                                                  (e['nik'] ?? '').toString())),
+                                      activeColor: AppTheme.primaryColor,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4)),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          if (val == true) {
+                                            for (final e
+                                                in _filteredPenduduk()) {
+                                              final nik =
+                                                  (e['nik'] ?? '').toString();
+                                              if (nik.isNotEmpty) {
+                                                _selectedNiks.add(nik);
+                                              }
+                                            }
+                                          } else {
+                                            for (final e
+                                                in _filteredPenduduk()) {
+                                              final nik =
+                                                  (e['nik'] ?? '').toString();
+                                              _selectedNiks.remove(nik);
+                                            }
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _pendudukFilter == 'kk'
+                                        ? 'Pilih semua (Kepala Keluarga)'
+                                        : 'Pilih semua hasil',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 9, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Terpilih: ${_selectedNiks.length}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                constraints:
+                                    const BoxConstraints(maxHeight: 320),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: _filteredPenduduk().isEmpty
+                                    ? const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(24.0),
+                                          child: Text(
+                                            'Tidak ada data penduduk yang cocok',
+                                            style: TextStyle(
+                                                color: Color(0xFF94A3B8),
+                                                fontSize: 13),
+                                          ),
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 4),
+                                        shrinkWrap: true,
+                                        itemCount: _filteredPenduduk().length,
+                                        separatorBuilder: (_, __) =>
+                                            const Divider(
+                                                height: 1,
+                                                color: Color(0xFFF1F5F9)),
+                                        itemBuilder: (ctx, i) {
+                                          final e = _filteredPenduduk()[i];
+                                          final nik =
+                                              (e['nik'] ?? '').toString();
+                                          final nama = (e['full_name'] ?? '-')
+                                              .toString();
+                                          final familyStatus =
+                                              (e['family_status'] ??
+                                                      e['familyStatus'] ??
+                                                      '')
+                                                  .toString();
+                                          final checked =
+                                              _selectedNiks.contains(nik);
+                                          return InkWell(
+                                            onTap: () {
+                                              setState(() {
+                                                if (checked) {
+                                                  _selectedNiks.remove(nik);
+                                                } else {
+                                                  _selectedNiks.add(nik);
+                                                }
+                                              });
+                                            },
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8),
+                                              child: Row(
+                                                children: [
+                                                  SizedBox(
+                                                    height: 20,
+                                                    width: 20,
+                                                    child: Checkbox(
+                                                      value: checked,
+                                                      activeColor:
+                                                          AppTheme.primaryColor,
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          4)),
+                                                      onChanged: (val) {
+                                                        setState(() {
+                                                          if (val == true) {
+                                                            _selectedNiks
+                                                                .add(nik);
+                                                          } else {
+                                                            _selectedNiks
+                                                                .remove(nik);
+                                                          }
+                                                        });
+                                                      },
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          nama,
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: Color(
+                                                                0xFF1E293B),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 2),
+                                                        Row(
+                                                          children: [
+                                                            Text(
+                                                              nik,
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize: 11,
+                                                                color: Color(
+                                                                    0xFF64748B),
+                                                              ),
+                                                            ),
+                                                            if (familyStatus
+                                                                .isNotEmpty) ...[
+                                                              const SizedBox(
+                                                                  width: 6),
+                                                              Container(
+                                                                padding: const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        5,
+                                                                    vertical:
+                                                                        1),
+                                                                decoration:
+                                                                    BoxDecoration(
+                                                                  color: const Color(
+                                                                      0xFFE2E8F0),
+                                                                  borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              4),
+                                                                ),
+                                                                child: Text(
+                                                                  familyStatus,
+                                                                  style:
+                                                                      const TextStyle(
+                                                                    fontSize: 9,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                    color: Color(
+                                                                        0xFF475569),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.save_rounded, size: 20),
+                          label: const Text(
+                            'Simpan Tagihan',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: _submit,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
                 ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/presentation/pages/warungku/warungku_page.dart';
 import 'package:ladimas/presentation/pages/home/penduduk_home_page.dart';
@@ -7,6 +8,7 @@ import 'package:ladimas/presentation/pages/tagihan/tagihan_page.dart';
 import 'package:ladimas/presentation/pages/webview/document_services_webview_page.dart';
 import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
 import 'package:ladimas/presentation/pages/auth/login_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_bloc.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_state.dart';
 import 'package:ladimas/data/models/pemerintah_desa_model.dart';
@@ -351,28 +353,69 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
   }
 
   Widget _buildHeaderSection() {
-    final double topPadding =
-        MediaQuery.of(context).padding.top + kToolbarHeight + 10;
+    final double topPadding = MediaQuery.of(context).padding.top + 20;
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(color: Color(0xFFF5F6FA)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            offset: const Offset(0, 4),
+            blurRadius: 12,
+          ),
+        ],
+      ),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(20, topPadding, 20, 20),
-        child: Column(
+        padding: EdgeInsets.fromLTRB(24, topPadding, 24, 24),
+        child: Row(
           children: [
-            Text(
-              _isLoadingPemdes
-                  ? 'Profil Desa'
-                  : (() {
-                      final vn = _villageName;
-                      return (vn != null && vn.isNotEmpty)
-                          ? 'Profil Desa $vn'
-                          : 'Profil Desa';
-                    })(),
-              style: const TextStyle(
-                color: Color(0xFF4A47DC),
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.account_balance_outlined,
+                color: AppTheme.primaryColor,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Informasi Publik',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _isLoadingPemdes
+                        ? 'Profil Desa'
+                        : (() {
+                            final vn = _villageName;
+                            return (vn != null && vn.isNotEmpty)
+                                ? 'Profil Desa $vn'
+                                : 'Profil Desa';
+                          })(),
+                    style: const TextStyle(
+                      color: Color(0xFF1E1E1E),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -393,74 +436,81 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F6FA),
-        // Tanpa AppBar agar konsisten dengan warungku page
+        backgroundColor: const Color(0xFFF5F7FA),
+        appBar: AppBar(
+          title: Text(
+            _isLoadingPemdes
+                ? 'Profil Desa'
+                : (() {
+                    final vn = _villageName;
+                    return (vn != null && vn.isNotEmpty)
+                        ? 'Profil Desa $vn'
+                        : 'Profil Desa';
+                  })(),
+            style: const TextStyle(
+              color:
+                  AppTheme.primaryColor, // Sesuai dengan warna AppBar Warungku
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          elevation: 0,
+        ),
         body: RefreshIndicator(
           onRefresh: () => _loadData(forceRefresh: true),
-          color: const Color(0xFF4A47DC),
-          child: Column(
-            children: [
-              // Header Section
-              _buildHeaderSection(),
-
-              // Content
-              Expanded(
-                child: _isLoadingPemdes
-                    ? const Center(child: CircularProgressIndicator())
-                    : _pemdes == null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.error_outline,
-                                    size: 64, color: Colors.grey),
-                                const SizedBox(height: 16),
-                                const Text('Gagal memuat data profil desa',
-                                    style: TextStyle(color: Colors.grey)),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      _loadData(forceRefresh: true),
-                                  child: const Text('Coba Lagi'),
-                                ),
-                              ],
+          color: AppTheme.primaryColor,
+          child: _isLoadingPemdes
+              ? const Center(child: CircularProgressIndicator())
+              : _pemdes == null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 64, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          const Text('Gagal memuat data profil desa',
+                              style: TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                          )
-                        : SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: _buildProfilDesaCard(),
-                            ),
+                            onPressed: () => _loadData(forceRefresh: true),
+                            child: const Text('Coba Lagi'),
                           ),
-              ),
-            ],
-          ),
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: _buildProfilDesaCards(),
+                      ),
+                    ),
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          selectedItemColor: const Color(0xFF4A47DC),
-          unselectedItemColor: Colors.grey,
+        bottomNavigationBar: AppBottomNavBar(
           currentIndex: 3, // Profil Desa
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.storefront_sharp, size: 28),
-                label: 'Warungku'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.account_balance, size: 28),
-                label: 'Profil Desa'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.description, size: 28), label: 'Portal'),
+          items: [
+            AppBottomNavBar.item(icon: Icons.home_outlined, label: 'Beranda'),
+            AppBottomNavBar.item(icon: Icons.storefront, label: 'Warungku'),
+            AppBottomNavBar.item(
+                icon: Icons.grid_view_outlined, label: 'Informasi'),
+            AppBottomNavBar.item(
+                icon: Icons.account_balance, label: 'Profil Desa'),
+            AppBottomNavBar.item(
+                icon: Icons.receipt_long_outlined, label: 'Tagihan'),
+            AppBottomNavBar.item(
+                icon: Icons.description_outlined, label: 'Portal'),
           ],
           onTap: (index) {
+            // Logika navigasi tetap sama
             switch (index) {
               case 0:
                 Navigator.pushReplacement(
@@ -490,7 +540,6 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
                 );
                 break;
               case 3:
-                // Current page - Profil Desa
                 break;
               case 4:
                 Navigator.pushReplacement(
@@ -516,232 +565,379 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
     );
   }
 
-  Widget _buildProfilDesaCard() {
+  // Helper untuk membungkus konten dalam card modern
+  Widget _buildModernCard(
+      {required String title,
+      required IconData icon,
+      required Widget content}) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.02),
             spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tampilkan panel Wilayah SELALU di atas
-          _buildSectionTitle('Wilayah'),
-          _buildInfoRow(
-              'Luas Wilayah',
-              _pemdes!.dataWilayah.isNotEmpty
-                  ? '${_pemdes!.dataWilayah.first.luasWilayah ?? '-'} m²'
-                  : '-'),
-          _buildBatasWilayah(_pemdes!.dataWilayah.isNotEmpty
-              ? _pemdes!.dataWilayah.first.batasWilayah
-              : null),
-          _buildInfoRow(
-              'Jumlah Dusun',
-              _pemdes!.dataWilayah.isNotEmpty
-                  ? (_pemdes!.dataWilayah.first.jumlahDusun ?? 0).toString()
-                  : '-'),
-          _buildInfoRow(
-              'Jumlah RT',
-              _pemdes!.dataWilayah.isNotEmpty
-                  ? (_pemdes!.dataWilayah.first.jumlahRT ?? 0).toString()
-                  : '-'),
-          const SizedBox(height: 16),
-
-          // Konten tambahan ditampilkan saat expand
-          ...(_isProfilDesaExpanded
-              ? [
-                  _buildSectionTitle('Penduduk'),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildPieChart(),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _buildInfoRow(
-                                'Perempuan',
-                                (_pemdes!.statistikPenduduk?.female ?? 0)
-                                    .toString()),
-                            const SizedBox(height: 8),
-                            _buildInfoRow(
-                                'Laki-laki',
-                                (_pemdes!.statistikPenduduk?.male ?? 0)
-                                    .toString()),
-                            const SizedBox(height: 8),
-                            _buildInfoRow(
-                                'Total',
-                                (_pemdes!.statistikPenduduk?.total ?? 0)
-                                    .toString()),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSectionTitle('Statistik Usia'),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildAgePieChart(),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildAgeInfoColumn(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSectionTitle('Statistik Pendidikan'),
-                  const SizedBox(height: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(child: _buildEducationPieChart()),
-                      const SizedBox(height: 8),
-                      _buildEducationInfoColumn(),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSectionTitle('Statistik Agama'),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildReligionPieChart(),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildReligionInfoColumn(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSectionTitle('Unit Usaha Masyarakat'),
-                  ...(() {
-                    final Map<String, int> counts = {};
-                    final Map<String, String> display = {};
-                    for (final w
-                        in (_pemdes?.warungkuKlasifikasiJenis ?? const [])) {
-                      final raw = w.jenis.trim();
-                      final key = raw.isEmpty ? 'lainnya' : raw.toLowerCase();
-                      final int val =
-                          (w.totalBarang is int && w.totalBarang > 0)
-                              ? w.totalBarang
-                              : 1;
-                      counts[key] = (counts[key] ?? 0) + val;
-                      if (!display.containsKey(key)) {
-                        display[key] = key.isEmpty
-                            ? 'Lainnya'
-                            : key[0].toUpperCase() + key.substring(1);
-                      }
-                    }
-                    if (counts.isEmpty) {
-                      return <Widget>[
-                        const Text('Belum ada data potensi',
-                            style: TextStyle(color: Color(0xFF666666)))
-                      ];
-                    }
-                    final keys = counts.keys.toList()
-                      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
-                    return keys
-                        .map((k) => _buildInfoRow(
-                            display[k] ?? k, counts[k]!.toString()))
-                        .toList();
-                  }()),
-                  const SizedBox(height: 16),
-                  _buildUsahaDesaGrouped(_pemdes!.usahaDesa),
-                  const SizedBox(height: 16),
-                  _buildSaranaUmumByKategori(_pemdes!.saranaUmumByKategori),
-                  const SizedBox(height: 16),
-                  _buildKesenianGrouped(_pemdes!.kesenianBudaya),
-                  const SizedBox(height: 16),
-                  _buildAbdesGrouped(_pemdes!.abdes),
-                ]
-              : []),
-
-          const SizedBox(height: 16),
-
-          // Tombol dropdown sederhana
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _isProfilDesaExpanded = !_isProfilDesaExpanded;
-              });
-            },
+          Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  _isProfilDesaExpanded
-                      ? Icons.keyboard_arrow_up
-                      : Icons.keyboard_arrow_down,
-                  color: const Color(0xFF4A47DC),
-                  size: 24,
+                Icon(icon, color: AppTheme.primaryColor, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E1E1E),
+                  ),
                 ),
               ],
             ),
           ),
+          Divider(height: 1, color: Colors.grey.withOpacity(0.15)),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: content,
+          ),
         ],
       ),
     );
   }
 
-  // Helper Widgets - Copied from beranda_page.dart
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        '• $title',
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF333333),
+  Widget _buildProfilDesaCards() {
+    return Column(
+      children: [
+        // 1. Wilayah (Selalu Tampil)
+        _buildModernCard(
+          title: 'Wilayah Desa',
+          icon: Icons.map_outlined,
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildInfoRow(
+                  'Luas Wilayah',
+                  _pemdes!.dataWilayah.isNotEmpty
+                      ? '${_pemdes!.dataWilayah.first.luasWilayah ?? '-'} m²'
+                      : '-'),
+              const SizedBox(height: 12),
+              _buildInfoRow(
+                  'Jumlah Dusun',
+                  _pemdes!.dataWilayah.isNotEmpty
+                      ? (_pemdes!.dataWilayah.first.jumlahDusun ?? 0).toString()
+                      : '-'),
+              const SizedBox(height: 12),
+              _buildInfoRow(
+                  'Jumlah RT',
+                  _pemdes!.dataWilayah.isNotEmpty
+                      ? (_pemdes!.dataWilayah.first.jumlahRT ?? 0).toString()
+                      : '-'),
+              const SizedBox(height: 16),
+              _buildBatasWilayah(_pemdes!.dataWilayah.isNotEmpty
+                  ? _pemdes!.dataWilayah.first.batasWilayah
+                  : null),
+            ],
+          ),
         ),
-      ),
+
+        // Konten tambahan ditampilkan saat expand
+        if (_isProfilDesaExpanded) ...[
+          // 2. Kependudukan (Gender & Usia)
+          _buildModernCard(
+            title: 'Kependudukan & Usia',
+            icon: Icons.people_alt_outlined,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Berdasarkan Jenis Kelamin',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF333333))),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildPieChart(),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildModernInfoRow(
+                              'Laki-laki',
+                              (_pemdes!.statistikPenduduk?.male ?? 0)
+                                  .toString(),
+                              icon: Icons.male,
+                              color: const Color(0xFF2196F3)),
+                          const SizedBox(height: 8),
+                          _buildModernInfoRow(
+                              'Perempuan',
+                              (_pemdes!.statistikPenduduk?.female ?? 0)
+                                  .toString(),
+                              icon: Icons.female,
+                              color: const Color(0xFFE91E63)),
+                          const SizedBox(height: 8),
+                          _buildModernInfoRow(
+                              'Total',
+                              (_pemdes!.statistikPenduduk?.total ?? 0)
+                                  .toString(),
+                              icon: Icons.group,
+                              color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Divider(),
+                ),
+                const Text('Berdasarkan Usia',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF333333))),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildAgePieChart(),
+                    const SizedBox(width: 24),
+                    Expanded(child: _buildAgeInfoColumn()),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // 3. Statistik Pendidikan
+          _buildModernCard(
+            title: 'Statistik Pendidikan',
+            icon: Icons.school_outlined,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: _buildEducationPieChart()),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: _buildEducationInfoColumn(),
+                ),
+              ],
+            ),
+          ),
+
+          // 4. Statistik Agama
+          _buildModernCard(
+            title: 'Statistik Agama',
+            icon: Icons.balance_outlined,
+            content: Row(
+              children: [
+                _buildReligionPieChart(),
+                const SizedBox(width: 24),
+                Expanded(child: _buildReligionInfoColumn()),
+              ],
+            ),
+          ),
+
+          // 5. Potensi & Usaha
+          _buildModernCard(
+            title: 'Potensi & Usaha Desa',
+            icon: Icons.storefront_outlined,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Unit Usaha Masyarakat',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF333333))),
+                const SizedBox(height: 8),
+                ...(() {
+                  final Map<String, int> counts = {};
+                  final Map<String, String> display = {};
+                  for (final w
+                      in (_pemdes?.warungkuKlasifikasiJenis ?? const [])) {
+                    final raw = w.jenis.trim();
+                    final key = raw.isEmpty ? 'lainnya' : raw.toLowerCase();
+                    final int val = (w.totalBarang is int && w.totalBarang > 0)
+                        ? w.totalBarang
+                        : 1;
+                    counts[key] = (counts[key] ?? 0) + val;
+                    if (!display.containsKey(key)) {
+                      display[key] = key.isEmpty
+                          ? 'Lainnya'
+                          : key[0].toUpperCase() + key.substring(1);
+                    }
+                  }
+                  if (counts.isEmpty) {
+                    return <Widget>[
+                      const Text('Belum ada data potensi',
+                          style: TextStyle(color: Color(0xFF666666)))
+                    ];
+                  }
+                  final keys = counts.keys.toList()
+                    ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+                  return [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        children: keys
+                            .map((k) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: _buildInfoRow(
+                                      display[k] ?? k, counts[k]!.toString()),
+                                ))
+                            .toList(),
+                      ),
+                    )
+                  ];
+                }()),
+                const SizedBox(height: 16),
+                _buildUsahaDesaGrouped(_pemdes!.usahaDesa),
+              ],
+            ),
+          ),
+
+          // 6. Fasilitas Umum
+          _buildModernCard(
+            title: 'Fasilitas & Sarana Umum',
+            icon: Icons.business_outlined,
+            content: _buildSaranaUmumByKategori(_pemdes!.saranaUmumByKategori),
+          ),
+
+          // 7. Budaya & ABDES
+          _buildModernCard(
+            title: 'Sosial Budaya & ABDES',
+            icon: Icons.color_lens_outlined,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildKesenianGrouped(_pemdes!.kesenianBudaya),
+                const SizedBox(height: 16),
+                _buildAbdesGrouped(_pemdes!.abdes),
+              ],
+            ),
+          ),
+        ],
+
+        // Expand/Collapse Button (Dibuat full width dan rapi)
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _isProfilDesaExpanded = !_isProfilDesaExpanded;
+            });
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _isProfilDesaExpanded
+                      ? 'Sembunyikan Detail'
+                      : 'Lihat Semua Detail',
+                  style: const TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  _isProfilDesaExpanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: AppTheme.primaryColor,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Helper Widgets
+  // ---------------------------------------------------------------------------
 
   Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$label :',
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF666666),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
             style: const TextStyle(
               fontSize: 14,
-              color: Color(0xFF666666),
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E1E1E),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF333333),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModernInfoRow(String label, String value,
+      {required IconData icon, required Color color}) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E1E1E)),
+        ),
+      ],
     );
   }
 
   Widget _buildBatasWilayah(String? raw) {
     final String source = (raw ?? '').trim();
     if (source.isEmpty) {
-      return _buildInfoRow('Batas Wilayah', '-');
+      return const SizedBox.shrink();
     }
 
     final cleaned =
@@ -758,23 +954,67 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
 
     String v(String k) => dir[k] ?? '-';
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          _buildInfoRow('Batas Wilayah', ''),
-          const SizedBox(height: 6),
-          _buildInfoRow('  - Barat', v('barat')),
-          _buildInfoRow('  - Timur', v('timur')),
-          _buildInfoRow('  - Utara', v('utara')),
-          _buildInfoRow('  - Selatan', v('selatan')),
-        ],
-      ),
+    Widget borderItem(String title, String val, IconData icon) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.withOpacity(0.1)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 14, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(title,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                val,
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E1E1E)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Batas Wilayah',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333333))),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            borderItem('Utara', v('utara'), Icons.arrow_upward),
+            const SizedBox(width: 8),
+            borderItem('Selatan', v('selatan'), Icons.arrow_downward),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            borderItem('Timur', v('timur'), Icons.arrow_forward),
+            const SizedBox(width: 8),
+            borderItem('Barat', v('barat'), Icons.arrow_back),
+          ],
+        ),
+      ],
     );
   }
 
@@ -793,85 +1033,72 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Usaha Desa'),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(8),
+        const Text('Daftar Usaha Desa',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333333))),
+        const SizedBox(height: 8),
+        for (final entry in grouped.entries) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, top: 4),
+            child: Text(
+              entry.key,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor,
+              ),
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final entry in grouped.entries) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6, top: 4),
-                  child: Text(
-                    entry.key,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
+          for (final item in entry.value)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.withOpacity(0.1)),
+              ),
+              child: Row(
+                children: [
+                  if ((item.photoUrl ?? '').trim().isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        _resolveStorageUrl(item.photoUrl) ?? item.photoUrl!,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            _fallbackImage(Icons.store),
+                      ),
+                    )
+                  else
+                    _fallbackImage(Icons.store),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      item.namaUsaha,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF333333)),
                     ),
                   ),
-                ),
-                for (final item in entry.value)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8, bottom: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if ((item.photoUrl ?? '').trim().isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Image.network(
-                              _resolveStorageUrl(item.photoUrl) ??
-                                  item.photoUrl!,
-                              width: 38,
-                              height: 38,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 38,
-                                height: 38,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.store,
-                                    size: 18, color: Color(0xFF9E9E9E)),
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEDEEF3),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Icon(Icons.store,
-                                size: 18, color: Color(0xFF9E9E9E)),
-                          ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            item.namaUsaha,
-                            style: const TextStyle(
-                                fontSize: 14, color: Color(0xFF333333)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+        ],
       ],
     );
   }
 
   Widget _buildSaranaUmumByKategori(List<SaranaUmumByKategori> groups) {
-    if (groups.isEmpty) return const SizedBox.shrink();
+    if (groups.isEmpty) {
+      return const Text('Belum ada data sarana umum',
+          style: TextStyle(color: Color(0xFF666666)));
+    }
 
     final Map<String, Map<String, List<SaranaRingkas>>> byJenis = {};
     for (final g in groups) {
@@ -884,120 +1111,91 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
       }
     }
 
-    if (byJenis.isEmpty) return const SizedBox.shrink();
+    if (byJenis.isEmpty) {
+      return const Text('Belum ada data sarana umum',
+          style: TextStyle(color: Color(0xFF666666)));
+    }
 
     final jenisKeys = byJenis.keys.toList()..sort();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Sarana Umum'),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(8),
+        for (final jenis in jenisKeys) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12, top: 8),
+            child: Text(
+              jenis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor,
+              ),
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final jenis in jenisKeys) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6, top: 4),
-                  child: Text(
-                    jenis,
+          ...(() {
+            final kategoriMap = byJenis[jenis]!;
+            final kategoriKeys = kategoriMap.keys.toList()..sort();
+            return kategoriKeys.map((kat) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    kat,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
+                      color: Color(0xFF666666),
                     ),
                   ),
-                ),
-                ...(() {
-                  final kategoriMap = byJenis[jenis]!;
-                  final kategoriKeys = kategoriMap.keys.toList()..sort();
-                  return kategoriKeys
-                      .map((kat) => Padding(
-                            padding: const EdgeInsets.only(left: 4, bottom: 6),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  kat,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF333333),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                for (final item in kategoriMap[kat]!)
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                        left: 8, bottom: 4),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        if ((item.photoUrl ?? '')
-                                            .toString()
-                                            .trim()
-                                            .isNotEmpty)
-                                          ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                            child: Image.network(
-                                              _resolveStorageUrl(
-                                                      item.photoUrl) ??
-                                                  item.photoUrl!,
-                                              width: 38,
-                                              height: 38,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) =>
-                                                  Container(
-                                                width: 38,
-                                                height: 38,
-                                                color: Colors.grey[200],
-                                                child: const Icon(Icons.place,
-                                                    size: 18,
-                                                    color: Color(0xFF9E9E9E)),
-                                              ),
-                                            ),
-                                          )
-                                        else
-                                          Container(
-                                            width: 38,
-                                            height: 38,
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFEDEEF3),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: const Icon(Icons.place,
-                                                size: 18,
-                                                color: Color(0xFF9E9E9E)),
-                                          ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            item.namaSarana,
-                                            style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Color(0xFF333333)),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
+                  const SizedBox(height: 8),
+                  for (final item in kategoriMap[kat]!)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                      ),
+                      child: Row(
+                        children: [
+                          if ((item.photoUrl ?? '')
+                              .toString()
+                              .trim()
+                              .isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                _resolveStorageUrl(item.photoUrl) ??
+                                    item.photoUrl!,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    _fallbackImage(Icons.place),
+                              ),
+                            )
+                          else
+                            _fallbackImage(Icons.place),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              item.namaSarana,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF333333)),
                             ),
-                          ))
-                      .toList();
-                }()),
-              ],
-            ],
-          ),
-        ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                ],
+              );
+            }).toList();
+          }()),
+        ],
       ],
     );
   }
@@ -1017,100 +1215,85 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Kesenian Dan Budaya'),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(8),
+        const Text('Kesenian dan Budaya',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor)),
+        const SizedBox(height: 12),
+        for (final entry in grouped.entries) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              () {
+                final name = entry.key.substring(5);
+                return name.isNotEmpty
+                    ? name[0].toUpperCase() + name.substring(1)
+                    : 'Kesenian';
+              }(),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF666666),
+              ),
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final entry in grouped.entries) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6, top: 4),
-                  child: Text(
-                    () {
-                      final name = entry.key.substring(5);
-                      return name.isNotEmpty
-                          ? name[0].toUpperCase() + name.substring(1)
-                          : 'Kesenian';
-                    }(),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
+          for (final item in entry.value)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.withOpacity(0.1)),
+              ),
+              child: Row(
+                children: [
+                  if ((item.photoUrl ?? '').trim().isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        _resolveStorageUrl(item.photoUrl) ?? item.photoUrl!,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            _fallbackImage(Icons.theaters),
+                      ),
+                    )
+                  else
+                    _fallbackImage(Icons.theaters),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      item.namaKesenian,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF333333)),
                     ),
                   ),
-                ),
-                for (final item in entry.value)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8, bottom: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if ((item.photoUrl ?? '').trim().isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Image.network(
-                              _resolveStorageUrl(item.photoUrl) ??
-                                  item.photoUrl!,
-                              width: 38,
-                              height: 38,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 38,
-                                height: 38,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.theaters,
-                                    size: 18, color: Color(0xFF9E9E9E)),
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEDEEF3),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Icon(Icons.theaters,
-                                size: 18, color: Color(0xFF9E9E9E)),
-                          ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            item.namaKesenian,
-                            style: const TextStyle(
-                                fontSize: 14, color: Color(0xFF333333)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
       ],
     );
   }
 
   Widget _buildAbdesGrouped(List<Abdes> items) {
     if (items.isEmpty) {
-      return Column(
+      return const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          SizedBox(height: 8),
+        children: [
+          Divider(height: 32),
           Text('ABDES',
               style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF333333))),
-          SizedBox(height: 6),
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor)),
+          SizedBox(height: 8),
           Text('Belum ada data ABDES',
               style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
         ],
@@ -1132,82 +1315,80 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
       grouped.putIfAbsent(key, () => <String>[]).add(label);
     }
 
-    if (grouped.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          SizedBox(height: 8),
-          Text('ABDES',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF333333))),
-          SizedBox(height: 6),
-          Text('Data ABDES belum dapat dikelompokkan',
-              style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
-        ],
-      );
-    }
+    if (grouped.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('ABDES'),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(8),
+        const Divider(height: 32),
+        const Text('ABDES',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor)),
+        const SizedBox(height: 12),
+        for (final entry in grouped.entries) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              () {
+                final name = entry.key.substring(5);
+                return name.isNotEmpty
+                    ? name[0].toUpperCase() + name.substring(1)
+                    : 'ABDES';
+              }(),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF666666),
+              ),
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final entry in grouped.entries) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6, top: 4),
-                  child: Text(
-                    () {
-                      final name = entry.key.substring(5);
-                      return name.isNotEmpty
-                          ? name[0].toUpperCase() + name.substring(1)
-                          : 'ABDES';
-                    }(),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
+          for (final nama in entry.value)
+            Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.withOpacity(0.1)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle,
+                      size: 16, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      nama,
+                      style: const TextStyle(
+                          fontSize: 13, color: Color(0xFF333333)),
                     ),
                   ),
-                ),
-                for (final nama in entry.value)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8, bottom: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('• ',
-                            style: TextStyle(
-                                fontSize: 14, color: Color(0xFF4A47DC))),
-                        Expanded(
-                          child: Text(
-                            nama,
-                            style: const TextStyle(
-                                fontSize: 14, color: Color(0xFF333333)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
       ],
     );
   }
 
-  // Pie Charts
+  Widget _fallbackImage(IconData icon) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDEEF3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, size: 20, color: const Color(0xFF9E9E9E)),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Chart Builders & Data Helpers
+  // ---------------------------------------------------------------------------
 
   Widget _buildPieChart() {
     return Container(
@@ -1223,10 +1404,8 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
                     pieTouchResponse.touchedSection == null) {
                   return;
                 }
-
                 final touchedIndex =
                     pieTouchResponse.touchedSection!.touchedSectionIndex;
-
                 if (_touchedIndex == touchedIndex) {
                   _touchedIndex = -1;
                 } else {
@@ -1236,8 +1415,8 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
             },
           ),
           borderData: FlBorderData(show: false),
-          sectionsSpace: 0,
-          centerSpaceRadius: 0,
+          sectionsSpace: 2,
+          centerSpaceRadius: 20,
           sections: _showingSections(),
         ),
       ),
@@ -1253,13 +1432,8 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
         PieChartSectionData(
           color: const Color(0xFF2196F3),
           value: 1,
-          title: 'Tidak ada data',
-          radius: 50,
-          titleStyle: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          title: '',
+          radius: 40,
         ),
       ];
     }
@@ -1268,46 +1442,33 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
 
     return List.generate(2, (i) {
       final isTouched = i == _touchedIndex;
-      final fontSize = isTouched ? 12.0 : 10.0;
-      final radius = isTouched ? 65.0 : 50.0;
-      final badgeSize = isTouched ? 35.0 : 25.0;
+      final fontSize = isTouched ? 14.0 : 12.0;
+      final radius = isTouched ? 50.0 : 40.0;
 
       switch (i) {
         case 0:
           return PieChartSectionData(
             color: const Color(0xFF2196F3),
             value: lakiLaki.toDouble(),
-            title: '$lakiLaki\n($lakiLakiPercent%)',
+            title: '$lakiLakiPercent%',
             radius: radius,
             titleStyle: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
-            badgeWidget: _Badge(
-              Icons.male,
-              size: badgeSize,
-              borderColor: const Color(0xFF2196F3),
-            ),
-            badgePositionPercentageOffset: .98,
           );
         case 1:
           return PieChartSectionData(
             color: const Color(0xFFE91E63),
             value: perempuan.toDouble(),
-            title: '$perempuan\n($perempuanPercent%)',
+            title: '$perempuanPercent%',
             radius: radius,
             titleStyle: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
-            badgeWidget: _Badge(
-              Icons.female,
-              size: badgeSize,
-              borderColor: const Color(0xFFF8BBD9),
-            ),
-            badgePositionPercentageOffset: .98,
           );
         default:
           throw Exception('Invalid section index');
@@ -1318,33 +1479,15 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
   Widget _buildAgePieChart() {
     final statistikUmur = _pemdes?.statistikUmur;
     if (statistikUmur == null) {
-      return const Center(
-        child: Text(
-          'Data statistik usia tidak tersedia',
-          style: TextStyle(color: Color(0xFF666666)),
-        ),
-      );
+      return const SizedBox(width: 120, height: 120);
     }
 
-    final usia0_17 = statistikUmur.usia0_17;
-    final usia18_30 = statistikUmur.usia18_30;
-    final usia31_45 = statistikUmur.usia31_45;
-    final usia46_60 = statistikUmur.usia46_60;
-    final usia61_plus = statistikUmur.usia61_plus;
     final total = statistikUmur.totalWithAge;
-
-    if (total == 0) {
-      return const Center(
-        child: Text(
-          'Tidak ada data statistik usia',
-          style: TextStyle(color: Color(0xFF666666)),
-        ),
-      );
-    }
+    if (total == 0) return const SizedBox(width: 120, height: 120);
 
     return Container(
-      width: 180,
-      height: 180,
+      width: 120,
+      height: 120,
       child: PieChart(
         PieChartData(
           pieTouchData: PieTouchData(
@@ -1355,10 +1498,8 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
                     pieTouchResponse.touchedSection == null) {
                   return;
                 }
-
                 final touchedIndex =
                     pieTouchResponse.touchedSection!.touchedSectionIndex;
-
                 if (_touchedAgeIndex == touchedIndex) {
                   _touchedAgeIndex = -1;
                 } else {
@@ -1368,10 +1509,15 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
             },
           ),
           borderData: FlBorderData(show: false),
-          sectionsSpace: 0,
-          centerSpaceRadius: 0,
+          sectionsSpace: 2,
+          centerSpaceRadius: 20,
           sections: _showingAgeSections(
-              usia0_17, usia18_30, usia31_45, usia46_60, usia61_plus, total),
+              statistikUmur.usia0_17,
+              statistikUmur.usia18_30,
+              statistikUmur.usia31_45,
+              statistikUmur.usia46_60,
+              statistikUmur.usia61_plus,
+              total),
         ),
       ),
     );
@@ -1382,122 +1528,67 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
     if (total == 0) {
       return [
         PieChartSectionData(
-          color: const Color(0xFF2196F3),
-          value: 1,
-          title: 'Tidak ada data',
-          radius: 50,
-          titleStyle: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+            color: const Color(0xFF2196F3), value: 1, title: '', radius: 40),
       ];
     }
 
-    final usia0_17Percent = (usia0_17 / total * 100).round();
-    final usia18_30Percent = (usia18_30 / total * 100).round();
-    final usia31_45Percent = (usia31_45 / total * 100).round();
-    final usia46_60Percent = (usia46_60 / total * 100).round();
-    final usia61_plusPercent = (usia61_plus / total * 100).round();
-
     return List.generate(5, (i) {
       final isTouched = i == _touchedAgeIndex;
-      final fontSize = isTouched ? 16.0 : 12.0;
-      final radius = isTouched ? 95.0 : 75.0;
-      final badgeSize = isTouched ? 45.0 : 35.0;
+      final radius = isTouched ? 50.0 : 40.0;
+      final fontSize =
+          isTouched ? 12.0 : 0.0; // Sembunyikan jika tidak di-touch agar rapi
 
       switch (i) {
         case 0:
           return PieChartSectionData(
-            color: const Color(0xFF2196F3),
-            value: usia0_17.toDouble(),
-            title: '$usia0_17\n($usia0_17Percent%)',
-            radius: radius,
-            titleStyle: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            badgeWidget: _Badge(
-              Icons.child_care,
-              size: badgeSize,
-              borderColor: const Color(0xFF2196F3),
-            ),
-            badgePositionPercentageOffset: .98,
-          );
+              color: const Color(0xFF2196F3),
+              value: usia0_17.toDouble(),
+              title: '${(usia0_17 / total * 100).round()}%',
+              radius: radius,
+              titleStyle: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white));
         case 1:
           return PieChartSectionData(
-            color: const Color(0xFF4CAF50),
-            value: usia18_30.toDouble(),
-            title: '$usia18_30\n($usia18_30Percent%)',
-            radius: radius,
-            titleStyle: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            badgeWidget: _Badge(
-              Icons.person,
-              size: badgeSize,
-              borderColor: const Color(0xFF4CAF50),
-            ),
-            badgePositionPercentageOffset: .98,
-          );
+              color: const Color(0xFF4CAF50),
+              value: usia18_30.toDouble(),
+              title: '${(usia18_30 / total * 100).round()}%',
+              radius: radius,
+              titleStyle: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white));
         case 2:
           return PieChartSectionData(
-            color: const Color(0xFFFF9800),
-            value: usia31_45.toDouble(),
-            title: '$usia31_45\n($usia31_45Percent%)',
-            radius: radius,
-            titleStyle: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            badgeWidget: _Badge(
-              Icons.work,
-              size: badgeSize,
-              borderColor: const Color(0xFFFF9800),
-            ),
-            badgePositionPercentageOffset: .98,
-          );
+              color: const Color(0xFFFF9800),
+              value: usia31_45.toDouble(),
+              title: '${(usia31_45 / total * 100).round()}%',
+              radius: radius,
+              titleStyle: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white));
         case 3:
           return PieChartSectionData(
-            color: const Color(0xFF9C27B0),
-            value: usia46_60.toDouble(),
-            title: '$usia46_60\n($usia46_60Percent%)',
-            radius: radius,
-            titleStyle: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            badgeWidget: _Badge(
-              Icons.person_outline,
-              size: badgeSize,
-              borderColor: const Color(0xFF9C27B0),
-            ),
-            badgePositionPercentageOffset: .98,
-          );
+              color: const Color(0xFF9C27B0),
+              value: usia46_60.toDouble(),
+              title: '${(usia46_60 / total * 100).round()}%',
+              radius: radius,
+              titleStyle: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white));
         case 4:
           return PieChartSectionData(
-            color: const Color(0xFFE91E63),
-            value: usia61_plus.toDouble(),
-            title: '$usia61_plus\n($usia61_plusPercent%)',
-            radius: radius,
-            titleStyle: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            badgeWidget: _Badge(
-              Icons.elderly,
-              size: badgeSize,
-              borderColor: const Color(0xFFE91E63),
-            ),
-            badgePositionPercentageOffset: .98,
-          );
+              color: const Color(0xFFE91E63),
+              value: usia61_plus.toDouble(),
+              title: '${(usia61_plus / total * 100).round()}%',
+              radius: radius,
+              titleStyle: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white));
         default:
           throw Error();
       }
@@ -1507,75 +1598,44 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
   Widget _buildAgeInfoColumn() {
     return Column(
       children: [
-        _buildSmallInfoRow(
-            '0-17 tahun', (_pemdes!.statistikUmur?.usia0_17 ?? 0).toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow(
-            '18-30 tahun', (_pemdes!.statistikUmur?.usia18_30 ?? 0).toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow(
-            '31-45 tahun', (_pemdes!.statistikUmur?.usia31_45 ?? 0).toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow(
-            '46-60 tahun', (_pemdes!.statistikUmur?.usia46_60 ?? 0).toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow(
-            '61+ tahun', (_pemdes!.statistikUmur?.usia61_plus ?? 0).toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow(
-            'Total', (_pemdes!.statistikUmur?.totalWithAge ?? 0).toString()),
-      ],
-    );
-  }
-
-  Widget _buildSmallInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF666666),
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
-          ),
-        ),
+        _buildLegendItem(
+            '0-17 thn',
+            (_pemdes!.statistikUmur?.usia0_17 ?? 0).toString(),
+            const Color(0xFF2196F3)),
+        _buildLegendItem(
+            '18-30 thn',
+            (_pemdes!.statistikUmur?.usia18_30 ?? 0).toString(),
+            const Color(0xFF4CAF50)),
+        _buildLegendItem(
+            '31-45 thn',
+            (_pemdes!.statistikUmur?.usia31_45 ?? 0).toString(),
+            const Color(0xFFFF9800)),
+        _buildLegendItem(
+            '46-60 thn',
+            (_pemdes!.statistikUmur?.usia46_60 ?? 0).toString(),
+            const Color(0xFF9C27B0)),
+        _buildLegendItem(
+            '61+ thn',
+            (_pemdes!.statistikUmur?.usia61_plus ?? 0).toString(),
+            const Color(0xFFE91E63)),
+        const Divider(height: 16),
+        _buildLegendItem(
+            'Total',
+            (_pemdes!.statistikUmur?.totalWithAge ?? 0).toString(),
+            Colors.grey),
       ],
     );
   }
 
   Widget _buildEducationPieChart() {
     final statistikPendidikan = _pemdes?.statistikPendidikan;
-    if (statistikPendidikan == null) {
-      return const Center(
-        child: Text(
-          'Data statistik pendidikan tidak tersedia',
-          style: TextStyle(color: Color(0xFF666666)),
-        ),
-      );
-    }
-
+    if (statistikPendidikan == null) return const SizedBox();
     final total = statistikPendidikan.totalWithEducation;
-    if (total == 0) {
-      return const Center(
-        child: Text(
-          'Tidak ada data statistik pendidikan',
-          style: TextStyle(color: Color(0xFF666666)),
-        ),
-      );
-    }
+    if (total == 0) return const SizedBox();
 
     return Container(
-      width: 220,
-      height: 220,
+      width: 160,
+      height: 160,
       child: PieChart(
         PieChartData(
           pieTouchData: PieTouchData(
@@ -1583,24 +1643,17 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
               setState(() {
                 if (!event.isInterestedForInteractions ||
                     pieTouchResponse == null ||
-                    pieTouchResponse.touchedSection == null) {
-                  return;
-                }
-
+                    pieTouchResponse.touchedSection == null) return;
                 final touchedIndex =
                     pieTouchResponse.touchedSection!.touchedSectionIndex;
-
-                if (_touchedEducationIndex == touchedIndex) {
-                  _touchedEducationIndex = -1;
-                } else {
-                  _touchedEducationIndex = touchedIndex;
-                }
+                _touchedEducationIndex =
+                    _touchedEducationIndex == touchedIndex ? -1 : touchedIndex;
               });
             },
           ),
           borderData: FlBorderData(show: false),
-          sectionsSpace: 0,
-          centerSpaceRadius: 0,
+          sectionsSpace: 2,
+          centerSpaceRadius: 30,
           sections: _showingEducationSections(statistikPendidikan, total),
         ),
       ),
@@ -1612,192 +1665,80 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
     if (total == 0) {
       return [
         PieChartSectionData(
-          color: const Color(0xFF2196F3),
-          value: 1,
-          title: 'Tidak ada data',
-          radius: 50,
-          titleStyle: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+            color: const Color(0xFF2196F3), value: 1, title: '', radius: 40),
       ];
     }
-
     final data = [
-      (
-        'Tidak/Belum Sekolah',
-        pendidikan.tidakSekolah,
-        const Color(0xFF2196F3),
-        Icons.school
-      ),
-      (
-        'Belum Tamat SD',
-        pendidikan.belumTamatSD,
-        const Color(0xFF4CAF50),
-        Icons.school_outlined
-      ),
-      ('Tamat SD', pendidikan.tamatSD, const Color(0xFFFF9800), Icons.school),
-      ('SLTP/SMP', pendidikan.sltp, const Color(0xFF9C27B0), Icons.school),
-      ('SLTA/SMA', pendidikan.slta, const Color(0xFFE91E63), Icons.school),
-      (
-        'Diploma I/II',
-        pendidikan.diplomaI,
-        const Color(0xFF00BCD4),
-        Icons.school
-      ),
-      (
-        'Diploma III',
-        pendidikan.diplomaIII,
-        const Color(0xFF795548),
-        Icons.school
-      ),
-      (
-        'Diploma IV/S1/S2',
-        pendidikan.diplomaIV,
-        const Color(0xFF607D8B),
-        Icons.school
-      ),
-      ('S3', pendidikan.strataIII, const Color(0xFF3F51B5), Icons.school),
-      ('Lainnya', pendidikan.lainnya, const Color(0xFF9E9E9E), Icons.school),
-    ].where((item) => item.$2 > 0).toList();
-
-    if (data.isEmpty) {
-      return [
-        PieChartSectionData(
-          color: const Color(0xFF2196F3),
-          value: 1,
-          title: 'Tidak ada data',
-          radius: 50,
-          titleStyle: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ];
-    }
+      (pendidikan.tidakSekolah, const Color(0xFF2196F3)),
+      (pendidikan.belumTamatSD, const Color(0xFF4CAF50)),
+      (pendidikan.tamatSD, const Color(0xFFFF9800)),
+      (pendidikan.sltp, const Color(0xFF9C27B0)),
+      (pendidikan.slta, const Color(0xFFE91E63)),
+      (pendidikan.diplomaI, const Color(0xFF00BCD4)),
+      (pendidikan.diplomaIII, const Color(0xFF795548)),
+      (pendidikan.diplomaIV, const Color(0xFF607D8B)),
+      (pendidikan.strataIII, const Color(0xFF3F51B5)),
+      (pendidikan.lainnya, const Color(0xFF9E9E9E)),
+    ].where((item) => item.$1 > 0).toList();
 
     return List.generate(data.length, (i) {
       final item = data[i];
       final isTouched = i == _touchedEducationIndex;
-      final fontSize = isTouched ? 18.0 : 14.0;
-      final radius = isTouched ? 115.0 : 95.0;
-      final badgeSize = isTouched ? 55.0 : 45.0;
-      final percent = (item.$2 / total * 100).round();
+      final radius = isTouched ? 60.0 : 50.0;
+      final percent = (item.$1 / total * 100).round();
 
       return PieChartSectionData(
-        color: item.$3,
-        value: item.$2.toDouble(),
-        title: '${item.$2}\n($percent%)',
+        color: item.$2,
+        value: item.$1.toDouble(),
+        title: isTouched ? '$percent%' : '',
         radius: radius,
-        titleStyle: TextStyle(
-          fontSize: fontSize,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-        badgeWidget: _Badge(
-          item.$4,
-          size: badgeSize,
-          borderColor: item.$3,
-        ),
-        badgePositionPercentageOffset: .98,
+        titleStyle: const TextStyle(
+            fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
       );
     });
   }
 
   Widget _buildEducationInfoColumn() {
-    final statistikPendidikan = _pemdes?.statistikPendidikan;
-    if (statistikPendidikan == null) return const SizedBox();
+    final p = _pemdes?.statistikPendidikan;
+    if (p == null) return const SizedBox();
 
     return Column(
       children: [
-        _buildCompactInfoRow(
-            'Tidak/Belum Sekolah', statistikPendidikan.tidakSekolah.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow(
-            'Belum Tamat SD', statistikPendidikan.belumTamatSD.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow(
-            'Tamat SD', statistikPendidikan.tamatSD.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow('SLTP/SMP', statistikPendidikan.sltp.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow('SLTA/SMA', statistikPendidikan.slta.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow(
-            'Diploma I/II', statistikPendidikan.diplomaI.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow(
-            'Diploma III', statistikPendidikan.diplomaIII.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow(
-            'Diploma IV/S1/S2', statistikPendidikan.diplomaIV.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow('S3', statistikPendidikan.strataIII.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow('Lainnya', statistikPendidikan.lainnya.toString()),
-        const SizedBox(height: 4),
-        _buildCompactInfoRow(
-            'Total', statistikPendidikan.totalWithEducation.toString()),
-      ],
-    );
-  }
-
-  Widget _buildCompactInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF666666),
-            ),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
-          ),
-        ),
+        _buildLegendItem('Tidak Sekolah', p.tidakSekolah.toString(),
+            const Color(0xFF2196F3)),
+        _buildLegendItem(
+            'Belum SD', p.belumTamatSD.toString(), const Color(0xFF4CAF50)),
+        _buildLegendItem(
+            'Tamat SD', p.tamatSD.toString(), const Color(0xFFFF9800)),
+        _buildLegendItem(
+            'SMP/Sederajat', p.sltp.toString(), const Color(0xFF9C27B0)),
+        _buildLegendItem(
+            'SMA/Sederajat', p.slta.toString(), const Color(0xFFE91E63)),
+        _buildLegendItem(
+            'Diploma I/II', p.diplomaI.toString(), const Color(0xFF00BCD4)),
+        _buildLegendItem(
+            'Diploma III', p.diplomaIII.toString(), const Color(0xFF795548)),
+        _buildLegendItem(
+            'S1/D4', p.diplomaIV.toString(), const Color(0xFF607D8B)),
+        _buildLegendItem(
+            'S2/S3', p.strataIII.toString(), const Color(0xFF3F51B5)),
+        _buildLegendItem(
+            'Lainnya', p.lainnya.toString(), const Color(0xFF9E9E9E)),
+        const Divider(height: 16),
+        _buildLegendItem('Total', p.totalWithEducation.toString(), Colors.grey),
       ],
     );
   }
 
   Widget _buildReligionPieChart() {
-    final statistikAgama = _pemdes?.statistikAgama;
-    if (statistikAgama == null) {
-      return const Center(
-        child: Text(
-          'Data statistik agama tidak tersedia',
-          style: TextStyle(color: Color(0xFF666666)),
-        ),
-      );
-    }
-
-    final total = statistikAgama.totalWithReligion;
-    if (total == 0) {
-      return const Center(
-        child: Text(
-          'Tidak ada data statistik agama',
-          style: TextStyle(color: Color(0xFF666666)),
-        ),
-      );
-    }
+    final agama = _pemdes?.statistikAgama;
+    if (agama == null) return const SizedBox(width: 120, height: 120);
+    final total = agama.totalWithReligion;
+    if (total == 0) return const SizedBox(width: 120, height: 120);
 
     return Container(
-      width: 180,
-      height: 180,
+      width: 120,
+      height: 120,
       child: PieChart(
         PieChartData(
           pieTouchData: PieTouchData(
@@ -1805,25 +1746,18 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
               setState(() {
                 if (!event.isInterestedForInteractions ||
                     pieTouchResponse == null ||
-                    pieTouchResponse.touchedSection == null) {
-                  return;
-                }
-
+                    pieTouchResponse.touchedSection == null) return;
                 final touchedIndex =
                     pieTouchResponse.touchedSection!.touchedSectionIndex;
-
-                if (_touchedReligionIndex == touchedIndex) {
-                  _touchedReligionIndex = -1;
-                } else {
-                  _touchedReligionIndex = touchedIndex;
-                }
+                _touchedReligionIndex =
+                    _touchedReligionIndex == touchedIndex ? -1 : touchedIndex;
               });
             },
           ),
           borderData: FlBorderData(show: false),
-          sectionsSpace: 0,
-          centerSpaceRadius: 0,
-          sections: _showingReligionSections(statistikAgama, total),
+          sectionsSpace: 2,
+          centerSpaceRadius: 20,
+          sections: _showingReligionSections(agama, total),
         ),
       ),
     );
@@ -1831,147 +1765,83 @@ class _ProfilDesaPageState extends State<ProfilDesaPage> {
 
   List<PieChartSectionData> _showingReligionSections(
       StatistikAgama agama, int total) {
-    if (total == 0) {
-      return [
-        PieChartSectionData(
-          color: const Color(0xFF2196F3),
-          value: 1,
-          title: 'Tidak ada data',
-          radius: 50,
-          titleStyle: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ];
-    }
-
     final data = [
-      ('Islam', agama.islam, const Color(0xFF2196F3), Icons.mosque),
-      ('Kristen', agama.kristen, const Color(0xFF4CAF50), Icons.church),
-      ('Katolik', agama.katolik, const Color(0xFF9C27B0), Icons.church),
-      ('Hindu', agama.hindu, const Color(0xFFFF9800), Icons.temple_hindu),
-      ('Buddha', agama.buddha, const Color(0xFFE91E63), Icons.temple_buddhist),
-      (
-        'Konghucu',
-        agama.konghucu,
-        const Color(0xFF00BCD4),
-        Icons.temple_buddhist
-      ),
-      ('Lainnya', agama.lainnya, const Color(0xFF9E9E9E), Icons.help_outline),
-    ].where((item) => item.$2 > 0).toList();
-
-    if (data.isEmpty) {
-      return [
-        PieChartSectionData(
-          color: const Color(0xFF2196F3),
-          value: 1,
-          title: 'Tidak ada data',
-          radius: 50,
-          titleStyle: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ];
-    }
+      (agama.islam, const Color(0xFF2196F3)),
+      (agama.kristen, const Color(0xFF4CAF50)),
+      (agama.katolik, const Color(0xFF9C27B0)),
+      (agama.hindu, const Color(0xFFFF9800)),
+      (agama.buddha, const Color(0xFFE91E63)),
+      (agama.konghucu, const Color(0xFF00BCD4)),
+      (agama.lainnya, const Color(0xFF9E9E9E)),
+    ].where((item) => item.$1 > 0).toList();
 
     return List.generate(data.length, (i) {
       final item = data[i];
       final isTouched = i == _touchedReligionIndex;
-      final fontSize = isTouched ? 16.0 : 12.0;
-      final radius = isTouched ? 95.0 : 75.0;
-      final badgeSize = isTouched ? 45.0 : 35.0;
-      final percent = (item.$2 / total * 100).round();
+      final radius = isTouched ? 50.0 : 40.0;
+      final percent = (item.$1 / total * 100).round();
 
       return PieChartSectionData(
-        color: item.$3,
-        value: item.$2.toDouble(),
-        title: '${item.$2}\n($percent%)',
+        color: item.$2,
+        value: item.$1.toDouble(),
+        title: isTouched ? '$percent%' : '',
         radius: radius,
-        titleStyle: TextStyle(
-          fontSize: fontSize,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-        badgeWidget: _Badge(
-          item.$4,
-          size: badgeSize,
-          borderColor: item.$3,
-        ),
-        badgePositionPercentageOffset: .98,
+        titleStyle: const TextStyle(
+            fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
       );
     });
   }
 
   Widget _buildReligionInfoColumn() {
-    final statistikAgama = _pemdes?.statistikAgama;
-    if (statistikAgama == null) return const SizedBox();
+    final a = _pemdes?.statistikAgama;
+    if (a == null) return const SizedBox();
 
     return Column(
       children: [
-        _buildSmallInfoRow('Islam', statistikAgama.islam.toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow('Kristen', statistikAgama.kristen.toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow('Katolik', statistikAgama.katolik.toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow('Hindu', statistikAgama.hindu.toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow('Buddha', statistikAgama.buddha.toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow('Konghucu', statistikAgama.konghucu.toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow('Lainnya', statistikAgama.lainnya.toString()),
-        const SizedBox(height: 6),
-        _buildSmallInfoRow(
-            'Total', statistikAgama.totalWithReligion.toString()),
+        _buildLegendItem('Islam', a.islam.toString(), const Color(0xFF2196F3)),
+        _buildLegendItem(
+            'Kristen', a.kristen.toString(), const Color(0xFF4CAF50)),
+        _buildLegendItem(
+            'Katolik', a.katolik.toString(), const Color(0xFF9C27B0)),
+        _buildLegendItem('Hindu', a.hindu.toString(), const Color(0xFFFF9800)),
+        _buildLegendItem(
+            'Buddha', a.buddha.toString(), const Color(0xFFE91E63)),
+        _buildLegendItem(
+            'Konghucu', a.konghucu.toString(), const Color(0xFF00BCD4)),
+        _buildLegendItem(
+            'Lainnya', a.lainnya.toString(), const Color(0xFF9E9E9E)),
       ],
     );
   }
-}
 
-// Badge Widget untuk Pie Charts
-class _Badge extends StatelessWidget {
-  const _Badge(
-    this.icon, {
-    required this.size,
-    required this.borderColor,
-  });
-  final IconData icon;
-  final double size;
-  final Color borderColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: borderColor,
-          width: 2,
-        ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withOpacity(.3),
-            offset: const Offset(2, 2),
-            blurRadius: 3,
+  Widget _buildLegendItem(String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6.0),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333333)),
           ),
         ],
-      ),
-      padding: EdgeInsets.all(size * .15),
-      child: Center(
-        child: Icon(
-          icon,
-          color: borderColor,
-          size: size * 0.5,
-        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/presentation/pages/beranda/beranda_page.dart';
 import 'package:ladimas/presentation/pages/home/penduduk_home_page.dart';
@@ -7,6 +8,8 @@ import 'package:ladimas/presentation/pages/webview/document_services_webview_pag
 import 'package:ladimas/presentation/pages/profil_desa/profil_desa_page.dart';
 import 'package:ladimas/presentation/pages/usaha_saya/usaha_saya_page.dart';
 import 'package:ladimas/presentation/pages/warungku/product_detail_page.dart';
+import 'package:ladimas/presentation/pages/warungku/semua_produk_page.dart';
+import 'package:ladimas/presentation/widgets/common/app_bottom_nav_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'package:ladimas/data/datasources/warungku_api_service.dart';
@@ -28,6 +31,7 @@ class _WarungkuPageState extends State<WarungkuPage>
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   List<Map<String, dynamic>> _items = [];
+
   // Filter state
   List<String> _klassOptions = [];
   List<Map<String, dynamic>> _jenisOptions = [];
@@ -41,8 +45,14 @@ class _WarungkuPageState extends State<WarungkuPage>
   List<dynamic> _districts = [];
   List<dynamic> _subDistricts = [];
   List<dynamic> _villages = [];
-  // pressed state for mini menu icons
-  final Map<String, bool> _miniPressed = {'Usaha': false, 'Filter': false};
+
+  bool get _hasActiveFilters =>
+      _selectedKlasifikasi != null ||
+      _selectedJenisId != null ||
+      _selectedProvince != null ||
+      _selectedDistrict != null ||
+      _selectedSubDistrict != null ||
+      _selectedVillage != null;
 
   @override
   void initState() {
@@ -56,6 +66,7 @@ class _WarungkuPageState extends State<WarungkuPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -63,8 +74,6 @@ class _WarungkuPageState extends State<WarungkuPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      // Refresh data ketika app kembali ke foreground
-      print('App resumed, refreshing data...');
       _refreshAllData();
     }
   }
@@ -85,13 +94,17 @@ class _WarungkuPageState extends State<WarungkuPage>
       final items = (result['items'] as List<dynamic>)
           .whereType<Map<String, dynamic>>()
           .toList();
-      setState(() {
-        _items = items;
-      });
+      if (mounted) {
+        setState(() {
+          _items = items;
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat produk: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat produk: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -99,13 +112,7 @@ class _WarungkuPageState extends State<WarungkuPage>
 
   Future<void> _loadFilters() async {
     try {
-      print('Loading filters...');
-
-      // Load klasifikasi menggunakan endpoint terpisah
       final klass = await _api.getKlasifikasiList();
-      print('Klasifikasi options: $klass');
-
-      // Normalisasi unique
       final List<String> normalized = [];
       for (final k in klass.map((e) => e.toString())) {
         final exists =
@@ -113,13 +120,13 @@ class _WarungkuPageState extends State<WarungkuPage>
         if (!exists) normalized.add(k);
       }
 
-      setState(() {
-        _klassOptions = normalized;
-        _jenisOptions = []; // Reset jenis options
-      });
+      if (mounted) {
+        setState(() {
+          _klassOptions = normalized;
+          _jenisOptions = [];
+        });
+      }
     } catch (e) {
-      print('Error loading filters: $e');
-      // Show error to user
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal memuat filter: $e')),
@@ -131,7 +138,9 @@ class _WarungkuPageState extends State<WarungkuPage>
   Future<void> _loadProvinces() async {
     try {
       final data = await _api.getProvinces();
-      setState(() => _provinces = data);
+      if (mounted) {
+        setState(() => _provinces = data);
+      }
     } catch (_) {}
   }
 
@@ -145,7 +154,6 @@ class _WarungkuPageState extends State<WarungkuPage>
       _selectedVillage = null;
     });
     try {
-      // Cari province code berdasarkan ID
       final province = _provinces.firstWhere(
         (p) => p['id']?.toString() == provinceId,
         orElse: () => {},
@@ -154,7 +162,9 @@ class _WarungkuPageState extends State<WarungkuPage>
 
       if (provinceCode != null) {
         final data = await _api.getDistricts(provinceCode);
-        setState(() => _districts = data);
+        if (mounted) {
+          setState(() => _districts = data);
+        }
       }
     } catch (_) {}
   }
@@ -167,7 +177,6 @@ class _WarungkuPageState extends State<WarungkuPage>
       _selectedVillage = null;
     });
     try {
-      // Cari district code berdasarkan ID
       final district = _districts.firstWhere(
         (d) => d['id']?.toString() == districtId,
         orElse: () => {},
@@ -176,7 +185,9 @@ class _WarungkuPageState extends State<WarungkuPage>
 
       if (districtCode != null) {
         final data = await _api.getSubDistricts(districtCode);
-        setState(() => _subDistricts = data);
+        if (mounted) {
+          setState(() => _subDistricts = data);
+        }
       }
     } catch (_) {}
   }
@@ -187,7 +198,6 @@ class _WarungkuPageState extends State<WarungkuPage>
       _selectedVillage = null;
     });
     try {
-      // Cari sub district code berdasarkan ID
       final subDistrict = _subDistricts.firstWhere(
         (s) => s['id']?.toString() == subDistrictId,
         orElse: () => {},
@@ -196,7 +206,9 @@ class _WarungkuPageState extends State<WarungkuPage>
 
       if (subDistrictCode != null) {
         final data = await _api.getVillages(subDistrictCode);
-        setState(() => _villages = data);
+        if (mounted) {
+          setState(() => _villages = data);
+        }
       }
     } catch (_) {}
   }
@@ -204,11 +216,7 @@ class _WarungkuPageState extends State<WarungkuPage>
   Future<void> _loadJenisByKlasifikasi(String klasifikasi,
       {bool resetJenisId = true}) async {
     try {
-      print('Loading jenis for klasifikasi: $klasifikasi');
       final jenis = await _api.getJenisByKlasifikasi(klasifikasi.toLowerCase());
-      print('Jenis options: $jenis');
-
-      // Validasi data jenis
       List<Map<String, dynamic>> validJenis = [];
       for (var item in jenis) {
         if (item['id'] != null && item['jenis'] != null) {
@@ -216,24 +224,26 @@ class _WarungkuPageState extends State<WarungkuPage>
         }
       }
 
-      setState(() {
-        _jenisOptions = validJenis;
-        if (resetJenisId) {
-          _selectedJenisId = null; // Reset pilihan jenis
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _jenisOptions = validJenis;
+          if (resetJenisId) {
+            _selectedJenisId = null;
+          }
+        });
+      }
     } catch (e) {
-      print('Error loading jenis: $e');
-      setState(() {
-        _jenisOptions = [];
-        if (resetJenisId) {
-          _selectedJenisId = null;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _jenisOptions = [];
+          if (resetJenisId) {
+            _selectedJenisId = null;
+          }
+        });
+      }
     }
   }
 
-  // Ambil data jenis tanpa mengubah UI (untuk dipakai di modal dengan setModal)
   Future<List<Map<String, dynamic>>> _fetchJenisByKlasifikasi(
       String klasifikasi) async {
     try {
@@ -251,22 +261,17 @@ class _WarungkuPageState extends State<WarungkuPage>
   }
 
   Future<void> _refreshAllData() async {
-    print('Refreshing all data...');
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Load ulang semua data
       await Future.wait([
         _loadItems(search: _searchController.text.trim()),
         _loadFilters(),
         _loadProvinces(),
       ]);
-
-      print('All data refreshed successfully');
     } catch (e) {
-      print('Error refreshing data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal memuat ulang data: $e')),
@@ -284,58 +289,63 @@ class _WarungkuPageState extends State<WarungkuPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
-      // Tanpa AppBar agar konsisten dengan penduduk home page
-      body: Column(
-        children: [
-          // Header Section
-          _buildHeaderSection(),
-
-          // Content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Search Section
-                  _buildSearchSection(),
-
-                  // Grid Produk
-                  _isLoading
-                      ? const Center(
-                          child: Padding(
-                          padding: EdgeInsets.only(top: 40),
-                          child: CircularProgressIndicator(),
-                        ))
-                      : _buildProductsGrid(),
-                ],
-              ),
-            ),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text(
+          'Warungku',
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: const Color(0xFF4A47DC),
-        unselectedItemColor: Colors.grey,
-        currentIndex: 1, // Warungku
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home, size: 28), label: 'Beranda'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.storefront_sharp, size: 28), label: 'Warungku'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.apps, size: 28), label: 'Informasi'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance, size: 28),
-              label: 'Profil Desa'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long, size: 28), label: 'Tagihan'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.description, size: 28), label: 'Portal'),
+      body: RefreshIndicator(
+        onRefresh: _refreshAllData,
+        color: AppTheme.primaryColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchSection(),
+              const SizedBox(height: 20),
+              _buildSectionHeader(),
+              const SizedBox(height: 12),
+              _isLoading
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 60),
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    )
+                  : _buildProductsGrid(),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: 1,
+        items: [
+          AppBottomNavBar.item(icon: Icons.home_outlined, label: 'Beranda'),
+          AppBottomNavBar.item(
+              icon: Icons.storefront_rounded, label: 'Warungku'),
+          AppBottomNavBar.item(
+              icon: Icons.grid_view_outlined, label: 'Informasi'),
+          AppBottomNavBar.item(
+              icon: Icons.account_balance_outlined, label: 'Profil Desa'),
+          AppBottomNavBar.item(icon: Icons.receipt_long_outlined, label: 'Tagihan'),
+          AppBottomNavBar.item(
+              icon: Icons.description_outlined, label: 'Portal'),
         ],
         onTap: (index) {
           switch (index) {
@@ -348,7 +358,6 @@ class _WarungkuPageState extends State<WarungkuPage>
               );
               break;
             case 1:
-              // Current page - Warungku
               break;
             case 2:
               Navigator.pushReplacement(
@@ -356,7 +365,7 @@ class _WarungkuPageState extends State<WarungkuPage>
                 MaterialPageRoute(
                   builder: (_) => PendudukHomePage(
                     penduduk: widget.penduduk,
-                    initialTabIndex: 0, // Berita Desa tab
+                    initialTabIndex: 0,
                   ),
                 ),
               );
@@ -392,77 +401,83 @@ class _WarungkuPageState extends State<WarungkuPage>
     );
   }
 
-  Widget _buildHeaderSection() {
-    final double topPadding =
-        MediaQuery.of(context).padding.top + kToolbarHeight + 10;
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(color: Color(0xFFF5F6FA)),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20, topPadding, 20, 20),
-        child: Column(
-          children: const [
-            Text(
-              'Warungku',
-              style: TextStyle(
-                color: Color(0xFF4A47DC),
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSearchSection() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Cari Produk',
-                  hintStyle: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 14,
-                  ),
-                  suffixIcon: Icon(
-                    Icons.search,
-                    color: Colors.grey[400],
-                    size: 20,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 15,
+    return Row(
+      children: [
+        // Input Pencarian
+        Expanded(
+          child: Container(
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x05000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                const Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF1E293B),
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'Cari produk di warung desa...',
+                      hintStyle: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 13,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onSubmitted: (value) => _loadItems(search: value),
                   ),
                 ),
-                onSubmitted: (value) => _loadItems(search: value),
-              ),
+                if (_searchController.text.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                      _loadItems();
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Icon(
+                        Icons.clear,
+                        size: 18,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          _buildMiniMenu(
-            icon: Icons.store,
-            label: 'Usaha',
+        ),
+        const SizedBox(width: 8),
+
+        // Tombol Usaha Saya
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
             onTap: () {
               Navigator.push(
                 context,
@@ -471,33 +486,120 @@ class _WarungkuPageState extends State<WarungkuPage>
                 ),
               ).then((result) {
                 if (result == true) {
-                  // Refresh semua data termasuk filter
                   _refreshAllData();
                 }
               });
             },
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Icon(
+                Icons.storefront_outlined,
+                color: AppTheme.primaryColor,
+                size: 22,
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
-          _buildMiniMenu(
-            icon: Icons.filter_list,
-            label: 'Filter',
+        ),
+        const SizedBox(width: 8),
+
+        // Tombol Filter
+        Material(
+          color: _hasActiveFilters ? AppTheme.primaryColor : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
             onTap: _showFilterSheet,
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _hasActiveFilters
+                      ? AppTheme.primaryColor
+                      : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                color:
+                    _hasActiveFilters ? Colors.white : const Color(0xFF475569),
+                size: 20,
+              ),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'Produk Tersedia',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SemuaProdukPage(),
+              ),
+            );
+          },
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Lihat Semua',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(width: 2),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: AppTheme.primaryColor,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   void _showFilterSheet() async {
-    // Load jenis jika ada klasifikasi yang dipilih tapi jenis options kosong
     if (_selectedKlasifikasi != null && _jenisOptions.isEmpty) {
       await _loadJenisByKlasifikasi(_selectedKlasifikasi!, resetJenisId: false);
     }
 
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) {
         return StatefulBuilder(builder: (context, setModal) {
@@ -505,17 +607,14 @@ class _WarungkuPageState extends State<WarungkuPage>
           bool loadingDistricts = false;
           bool loadingSubDistricts = false;
           bool loadingVillages = false;
-          // Validasi dan reset nilai yang tidak valid
           String? validKlasifikasi = _selectedKlasifikasi;
           int? validJenisId = _selectedJenisId;
 
-          // Pastikan klasifikasi yang dipilih ada dalam options
           if (validKlasifikasi != null &&
               !_klassOptions.contains(validKlasifikasi)) {
             validKlasifikasi = null;
           }
 
-          // Pastikan jenis yang dipilih ada dalam options
           if (validJenisId != null && _jenisOptions.isNotEmpty) {
             final jenisExists = _jenisOptions
                 .any((j) => (j['id'] as num).toInt() == validJenisId);
@@ -524,243 +623,326 @@ class _WarungkuPageState extends State<WarungkuPage>
             }
           }
 
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Filter',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  // Klasifikasi
-                  DropdownButtonFormField<String>(
-                    value: validKlasifikasi,
-                    items: [
-                      const DropdownMenuItem<String>(
-                          value: null, child: Text('Semua Klasifikasi')),
-                      ..._klassOptions.map((k) =>
-                          DropdownMenuItem<String>(value: k, child: Text(k)))
-                    ],
-                    onChanged: (v) async {
-                      setModal(() {
-                        _selectedKlasifikasi = v;
-                        _selectedJenisId = null;
-                        loadingJenis = true;
-                      });
-                      if (v != null) {
-                        final list = await _fetchJenisByKlasifikasi(v);
-                        setState(() {
-                          _jenisOptions = list;
-                        });
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 12,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top drag indicator
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Filter Produk',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        if (_hasActiveFilters)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedKlasifikasi = null;
+                                _selectedJenisId = null;
+                                _selectedProvince = null;
+                                _selectedDistrict = null;
+                                _selectedSubDistrict = null;
+                                _selectedVillage = null;
+                                _jenisOptions = [];
+                              });
+                              Navigator.pop(context);
+                              _refreshAllData();
+                            },
+                            child: const Text(
+                              'Reset Filter',
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDropdownField<String>(
+                      label: 'Klasifikasi',
+                      value: validKlasifikasi,
+                      items: [
+                        const DropdownMenuItem<String>(
+                            value: null, child: Text('Semua Klasifikasi')),
+                        ..._klassOptions.map((k) =>
+                            DropdownMenuItem<String>(value: k, child: Text(k)))
+                      ],
+                      onChanged: (v) async {
                         setModal(() {
-                          loadingJenis = false;
+                          _selectedKlasifikasi = v;
+                          _selectedJenisId = null;
+                          loadingJenis = true;
                         });
-                      } else {
-                        setState(() {
-                          _jenisOptions = [];
-                        });
+                        if (v != null) {
+                          final list = await _fetchJenisByKlasifikasi(v);
+                          setState(() {
+                            _jenisOptions = list;
+                          });
+                          setModal(() {
+                            loadingJenis = false;
+                          });
+                        } else {
+                          setState(() {
+                            _jenisOptions = [];
+                          });
+                          setModal(() {
+                            loadingJenis = false;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDropdownField<int>(
+                      label: 'Jenis',
+                      value: validJenisId,
+                      items: [
+                        const DropdownMenuItem<int>(
+                            value: null, child: Text('Semua Jenis')),
+                        ..._jenisOptions.map((j) => DropdownMenuItem<int>(
+                              value: (j['id'] as num).toInt(),
+                              child: Text(j['jenis']?.toString() ?? '-'),
+                            ))
+                      ],
+                      onChanged: (v) => setModal(() => _selectedJenisId = v),
+                    ),
+                    if (loadingJenis) ...[
+                      const SizedBox(height: 6),
+                      const LinearProgressIndicator(
+                        minHeight: 2,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    _buildDropdownField<String>(
+                      label: 'Provinsi',
+                      value: _selectedProvince,
+                      items: [
+                        const DropdownMenuItem<String>(
+                            value: null, child: Text('Semua Provinsi')),
+                        ..._provinces.map((p) => DropdownMenuItem<String>(
+                            value: p['id']?.toString(),
+                            child: Text(p['name']?.toString() ??
+                                p['nama']?.toString() ??
+                                '-')))
+                      ],
+                      onChanged: (v) async {
                         setModal(() {
-                          loadingJenis = false;
-                        });
-                      }
-                    },
-                    decoration: const InputDecoration(labelText: 'Klasifikasi'),
-                  ),
-                  const SizedBox(height: 12),
-                  // Jenis
-                  DropdownButtonFormField<int>(
-                    value: validJenisId,
-                    items: [
-                      const DropdownMenuItem<int>(
-                          value: null, child: Text('Semua Jenis')),
-                      ..._jenisOptions.map((j) => DropdownMenuItem<int>(
-                            value: (j['id'] as num).toInt(),
-                            child: Text(j['jenis']?.toString() ?? '-'),
-                          ))
-                    ],
-                    onChanged: (v) => setModal(() => _selectedJenisId = v),
-                    decoration: const InputDecoration(labelText: 'Jenis'),
-                  ),
-                  if (loadingJenis) ...[
-                    const SizedBox(height: 8),
-                    const LinearProgressIndicator(minHeight: 2),
-                  ],
-                  const SizedBox(height: 12),
-                  // Wilayah cascade
-                  DropdownButtonFormField<String>(
-                    value: _selectedProvince,
-                    items: [
-                      const DropdownMenuItem<String>(
-                          value: null, child: Text('Semua Provinsi')),
-                      ..._provinces.map((p) => DropdownMenuItem<String>(
-                          value: p['id']?.toString(), // ✅ Gunakan ID numerik
-                          child: Text(p['name']?.toString() ??
-                              p['nama']?.toString() ??
-                              '-')))
-                    ],
-                    onChanged: (v) async {
-                      setModal(() {
-                        _selectedProvince = v;
-                        _selectedDistrict = null;
-                        _selectedSubDistrict = null;
-                        _selectedVillage = null;
-                        loadingDistricts = true;
-                        _districts = [];
-                        _subDistricts = [];
-                        _villages = [];
-                      });
-                      if (v != null) {
-                        await _loadDistricts(v);
-                      } else {
-                        setState(() {
+                          _selectedProvince = v;
+                          _selectedDistrict = null;
+                          _selectedSubDistrict = null;
+                          _selectedVillage = null;
+                          loadingDistricts = true;
                           _districts = [];
                           _subDistricts = [];
                           _villages = [];
                         });
-                      }
-                      setModal(() {
-                        loadingDistricts = false;
-                      });
-                    },
-                    decoration: const InputDecoration(labelText: 'Provinsi'),
-                  ),
-                  if (loadingDistricts) ...[
-                    const SizedBox(height: 8),
-                    const LinearProgressIndicator(minHeight: 2),
-                  ],
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedDistrict,
-                    items: [
-                      const DropdownMenuItem<String>(
-                          value: null, child: Text('Semua Kabupaten/Kota')),
-                      ..._districts.map((d) => DropdownMenuItem<String>(
-                          value: d['id']?.toString(), // ✅ Gunakan ID numerik
-                          child: Text(d['name']?.toString() ??
-                              d['nama']?.toString() ??
-                              '-')))
+                        if (v != null) {
+                          await _loadDistricts(v);
+                        } else {
+                          setState(() {
+                            _districts = [];
+                            _subDistricts = [];
+                            _villages = [];
+                          });
+                        }
+                        setModal(() {
+                          loadingDistricts = false;
+                        });
+                      },
+                    ),
+                    if (loadingDistricts) ...[
+                      const SizedBox(height: 6),
+                      const LinearProgressIndicator(
+                        minHeight: 2,
+                        color: AppTheme.primaryColor,
+                      ),
                     ],
-                    onChanged: (v) async {
-                      setModal(() {
-                        _selectedDistrict = v;
-                        _selectedSubDistrict = null;
-                        _selectedVillage = null;
-                        loadingSubDistricts = true;
-                        _subDistricts = [];
-                        _villages = [];
-                      });
-                      if (v != null) {
-                        await _loadSubDistricts(v);
-                      } else {
-                        setState(() {
+                    const SizedBox(height: 12),
+                    _buildDropdownField<String>(
+                      label: 'Kabupaten/Kota',
+                      value: _selectedDistrict,
+                      items: [
+                        const DropdownMenuItem<String>(
+                            value: null, child: Text('Semua Kabupaten/Kota')),
+                        ..._districts.map((d) => DropdownMenuItem<String>(
+                            value: d['id']?.toString(),
+                            child: Text(d['name']?.toString() ??
+                                d['nama']?.toString() ??
+                                '-')))
+                      ],
+                      onChanged: (v) async {
+                        setModal(() {
+                          _selectedDistrict = v;
+                          _selectedSubDistrict = null;
+                          _selectedVillage = null;
+                          loadingSubDistricts = true;
                           _subDistricts = [];
                           _villages = [];
                         });
-                      }
-                      setModal(() {
-                        loadingSubDistricts = false;
-                      });
-                    },
-                    decoration:
-                        const InputDecoration(labelText: 'Kabupaten/Kota'),
-                  ),
-                  if (loadingSubDistricts) ...[
-                    const SizedBox(height: 8),
-                    const LinearProgressIndicator(minHeight: 2),
-                  ],
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedSubDistrict,
-                    items: [
-                      const DropdownMenuItem<String>(
-                          value: null, child: Text('Semua Kecamatan')),
-                      ..._subDistricts.map((s) => DropdownMenuItem<String>(
-                          value: s['id']?.toString(), // ✅ Gunakan ID numerik
-                          child: Text(s['name']?.toString() ??
-                              s['nama']?.toString() ??
-                              '-')))
+                        if (v != null) {
+                          await _loadSubDistricts(v);
+                        } else {
+                          setState(() {
+                            _subDistricts = [];
+                            _villages = [];
+                          });
+                        }
+                        setModal(() {
+                          loadingSubDistricts = false;
+                        });
+                      },
+                    ),
+                    if (loadingSubDistricts) ...[
+                      const SizedBox(height: 6),
+                      const LinearProgressIndicator(
+                        minHeight: 2,
+                        color: AppTheme.primaryColor,
+                      ),
                     ],
-                    onChanged: (v) async {
-                      setModal(() {
-                        _selectedSubDistrict = v;
-                        _selectedVillage = null;
-                        loadingVillages = true;
-                        _villages = [];
-                      });
-                      if (v != null) {
-                        await _loadVillages(v);
-                      } else {
-                        setState(() {
+                    const SizedBox(height: 12),
+                    _buildDropdownField<String>(
+                      label: 'Kecamatan',
+                      value: _selectedSubDistrict,
+                      items: [
+                        const DropdownMenuItem<String>(
+                            value: null, child: Text('Semua Kecamatan')),
+                        ..._subDistricts.map((s) => DropdownMenuItem<String>(
+                            value: s['id']?.toString(),
+                            child: Text(s['name']?.toString() ??
+                                s['nama']?.toString() ??
+                                '-')))
+                      ],
+                      onChanged: (v) async {
+                        setModal(() {
+                          _selectedSubDistrict = v;
+                          _selectedVillage = null;
+                          loadingVillages = true;
                           _villages = [];
                         });
-                      }
-                      setModal(() {
-                        loadingVillages = false;
-                      });
-                    },
-                    decoration: const InputDecoration(labelText: 'Kecamatan'),
-                  ),
-                  if (loadingVillages) ...[
-                    const SizedBox(height: 8),
-                    const LinearProgressIndicator(minHeight: 2),
-                  ],
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedVillage,
-                    items: [
-                      const DropdownMenuItem<String>(
-                          value: null, child: Text('Semua Desa/Kelurahan')),
-                      ..._villages.map((v) => DropdownMenuItem<String>(
-                          value: v['id']?.toString(), // ✅ Gunakan ID numerik
-                          child: Text(v['name']?.toString() ??
-                              v['nama']?.toString() ??
-                              '-')))
-                    ],
-                    onChanged: (v) => setModal(() => _selectedVillage = v),
-                    decoration:
-                        const InputDecoration(labelText: 'Desa/Kelurahan'),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedKlasifikasi = null;
-                              _selectedJenisId = null;
-                              _selectedProvince = null;
-                              _selectedDistrict = null;
-                              _selectedSubDistrict = null;
-                              _selectedVillage = null;
-                              _jenisOptions = []; // Reset jenis options juga
-                            });
-                            Navigator.pop(context);
-                            _refreshAllData();
-                          },
-                          child: const Text('Reset'),
-                        ),
+                        if (v != null) {
+                          await _loadVillages(v);
+                        } else {
+                          setState(() {
+                            _villages = [];
+                          });
+                        }
+                        setModal(() {
+                          loadingVillages = false;
+                        });
+                      },
+                    ),
+                    if (loadingVillages) ...[
+                      const SizedBox(height: 6),
+                      const LinearProgressIndicator(
+                        minHeight: 2,
+                        color: AppTheme.primaryColor,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _refreshAllData();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4A47DC),
+                    ],
+                    const SizedBox(height: 12),
+                    _buildDropdownField<String>(
+                      label: 'Desa/Kelurahan',
+                      value: _selectedVillage,
+                      items: [
+                        const DropdownMenuItem<String>(
+                            value: null, child: Text('Semua Desa/Kelurahan')),
+                        ..._villages.map((v) => DropdownMenuItem<String>(
+                            value: v['id']?.toString(),
+                            child: Text(v['name']?.toString() ??
+                                v['nama']?.toString() ??
+                                '-')))
+                      ],
+                      onChanged: (v) => setModal(() => _selectedVillage = v),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedKlasifikasi = null;
+                                _selectedJenisId = null;
+                                _selectedProvince = null;
+                                _selectedDistrict = null;
+                                _selectedSubDistrict = null;
+                                _selectedVillage = null;
+                                _jenisOptions = [];
+                              });
+                              Navigator.pop(context);
+                              _refreshAllData();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text(
+                              'Reset',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
-                          child: const Text('Terapkan',
-                              style: TextStyle(color: Colors.white)),
                         ),
-                      ),
-                    ],
-                  )
-                ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _refreshAllData();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text(
+                              'Terapkan',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -769,37 +951,83 @@ class _WarungkuPageState extends State<WarungkuPage>
     );
   }
 
-  Widget _buildMiniMenu({
-    required IconData icon,
+  Widget _buildDropdownField<T>({
     required String label,
-    required VoidCallback onTap,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
   }) {
-    final bool isPressed = _miniPressed[label] == true;
-    final Color iconColor =
-        isPressed ? const Color(0xFF4A47DC) : (Colors.grey[700]!);
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _miniPressed[label] = true),
-      onTapUp: (_) => setState(() => _miniPressed[label] = false),
-      onTapCancel: () => setState(() => _miniPressed[label] = false),
-      onTap: onTap,
-      child: SizedBox(
-        width: 40,
-        child: Icon(
-          icon,
-          size: 28,
-          color: iconColor,
+    return DropdownButtonFormField<T>(
+      initialValue: value,
+      items: items,
+      onChanged: onChanged,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide:
+              const BorderSide(color: AppTheme.primaryColor, width: 1.5),
         ),
       ),
+      style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
     );
   }
 
   Widget _buildProductsGrid() {
     if (_items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 40),
-        child: Center(child: Text('Belum ada produk')),
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+        ),
+        child: const Column(
+          children: [
+            Icon(
+              Icons.remove_shopping_cart_outlined,
+              size: 48,
+              color: Color(0xFF94A3B8),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Belum Ada Produk',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Tidak ada produk yang cocok dengan pencarian atau filter.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
       );
     }
+
+    final displayItems = _items.take(6).toList();
 
     return GridView.builder(
       shrinkWrap: true,
@@ -808,11 +1036,11 @@ class _WarungkuPageState extends State<WarungkuPage>
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.75,
+        childAspectRatio: 0.74,
       ),
-      itemCount: _items.length,
+      itemCount: displayItems.length,
       itemBuilder: (context, index) {
-        final item = _items[index];
+        final item = displayItems[index];
         final informasiUsaha =
             item['informasi_usaha'] ?? item['informasiUsaha'];
         final pemilik = informasiUsaha != null
@@ -832,20 +1060,24 @@ class _WarungkuPageState extends State<WarungkuPage>
           if (tryNum != null) {
             hargaNum = tryNum.toDouble().round();
           } else {
-            hargaNum =
-                int.tryParse(hStr.replaceAll(RegExp(r'[^\\d]'), '')) ?? 0;
+            hargaNum = int.tryParse(hStr.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
           }
         }
         final priceStr = NumberFormat.currency(
-                locale: 'id_ID', symbol: 'Rp. ', decimalDigits: 0)
+                locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
             .format(hargaNum);
         final imageUrl = item['foto_url'] ?? '';
+        final namaUsaha = informasiUsaha != null
+            ? (informasiUsaha['nama_usaha'] ?? informasiUsaha['namaUsaha'])
+            : null;
+
         return _buildProductCard(
           name: name,
           description: desc,
           price: priceStr,
           phoneNumber: phone,
           imageUrl: imageUrl,
+          storeName: namaUsaha?.toString(),
           id: (item['id'] as num?)?.toInt(),
         );
       },
@@ -858,6 +1090,7 @@ class _WarungkuPageState extends State<WarungkuPage>
     required String price,
     required String phoneNumber,
     String? imageUrl,
+    String? storeName,
     int? id,
   }) {
     return GestureDetector(
@@ -879,89 +1112,93 @@ class _WarungkuPageState extends State<WarungkuPage>
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+          boxShadow: const [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Color(0x08000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
             ),
           ],
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: Container(
                 width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12),
-                  ),
-                ),
+                color: const Color(0xFFF1F5F9),
                 child: imageUrl != null && imageUrl.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
-                        ),
-                        child: Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: Icon(
-                              Icons.broken_image,
-                              size: 40,
-                              color: Colors.grey[400],
-                            ),
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(
+                            Icons.storefront_outlined,
+                            size: 32,
+                            color: Color(0xFF94A3B8),
                           ),
                         ),
                       )
-                    : Center(
+                    : const Center(
                         child: Icon(
-                          Icons.image_outlined,
-                          size: 40,
-                          color: Colors.grey[400],
+                          Icons.storefront_outlined,
+                          size: 32,
+                          color: Color(0xFF94A3B8),
                         ),
                       ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     name,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
+                      color: Color(0xFF1E293B),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 3),
                   Text(
                     price,
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4A47DC),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
+                  if (storeName != null && storeName.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.store_outlined,
+                          size: 11,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            storeName,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF64748B),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

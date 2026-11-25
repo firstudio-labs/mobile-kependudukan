@@ -48,13 +48,10 @@ class _FamilyListPageState extends State<FamilyListPage> {
   }
 
   /// Batch load foto diri untuk semua anggota keluarga sekaligus
-  /// Ini lebih efisien daripada load satu per satu di itemBuilder
   Future<void> _batchLoadFotoDiri(List<String> nikList,
       {bool forceRefresh = false}) async {
     if (nikList.isEmpty) return;
 
-    // Jika force refresh, load semua foto
-    // Jika tidak, hanya load yang belum di-cache
     final nikToLoad = forceRefresh
         ? nikList
         : nikList
@@ -65,10 +62,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
 
     if (nikToLoad.isEmpty) return;
 
-    // Mark semua sebagai sedang di-check
     _fotoCheckedNik.addAll(nikToLoad);
 
-    // Load semua foto secara parallel dengan forceRefresh jika diperlukan
     final futures = nikToLoad.map((nik) async {
       final result = await _familyRepository.getFamilyMemberDocuments(nik,
           forceRefresh: forceRefresh);
@@ -97,26 +92,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
     }
   }
 
-  /// Lazy load foto diri untuk item yang terlihat (untuk optimasi lebih lanjut)
-  Future<void> _ensureFotoDiri(String nik) async {
-    if (_fotoDiriByNik.containsKey(nik) || _fotoCheckedNik.contains(nik)) {
-      return;
-    }
-    _fotoCheckedNik.add(nik);
-    final result = await _familyRepository.getFamilyMemberDocuments(nik);
-    result.fold(
-      (_) {},
-      (docs) {
-        final url = docs.fotoDiri?.previewUrl ?? '';
-        if (mounted && url.isNotEmpty) {
-          setState(() {
-            _fotoDiriByNik[nik] = url;
-          });
-        }
-      },
-    );
-  }
-
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
@@ -138,13 +113,11 @@ class _FamilyListPageState extends State<FamilyListPage> {
     setState(() => _isLoadingKK = true);
 
     try {
-      // Cek cache KK terlebih dahulu (jauh lebih cepat!)
       final authLocalStorage = GetIt.instance<AuthLocalStorage>();
       final cachedKK =
           await authLocalStorage.getCachedKKByNik(widget.nikPenduduk);
 
       if (cachedKK != null && cachedKK.isNotEmpty) {
-        // KK ditemukan di cache, langsung gunakan
         if (mounted) {
           setState(() {
             _currentKK = cachedKK;
@@ -156,7 +129,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
         return;
       }
 
-      // Jika tidak ada di cache, gunakan method cepat getKKByNik dari PendudukApiService
       try {
         final pendudukApiService = GetIt.instance<PendudukApiService>();
         final kk = await pendudukApiService.getKKByNik(widget.nikPenduduk);
@@ -164,7 +136,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
         if (!mounted) return;
 
         if (kk != null && kk.isNotEmpty) {
-          // Cache hasilnya untuk penggunaan berikutnya
           await authLocalStorage.cacheKKByNik(widget.nikPenduduk, kk);
 
           setState(() {
@@ -174,15 +145,12 @@ class _FamilyListPageState extends State<FamilyListPage> {
           });
           _loadFamilyData();
         } else {
-          // Jika getKKByNik tidak menemukan KK, fallback ke getPendudukDetail
           _loadKKDataFallback();
         }
       } catch (e) {
-        // Fallback jika ada error
         _loadKKDataFallback();
       }
     } catch (e) {
-      // Fallback ke method lama jika ada error
       _loadKKDataFallback();
     }
   }
@@ -231,14 +199,12 @@ class _FamilyListPageState extends State<FamilyListPage> {
   }
 
   Future<void> _loadFamilyData({bool forceRefresh = false}) async {
-    // Gunakan kk yang sudah ada atau yang baru didapat
     final kk = widget.kk.isNotEmpty ? widget.kk : _currentKK;
 
     if (kk.isEmpty) {
       return;
     }
 
-    // Jika force refresh, clear cache foto diri juga
     if (forceRefresh) {
       _fotoDiriByNik.clear();
       _fotoCheckedNik.clear();
@@ -246,8 +212,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
 
     await _familyCubit.loadFamilyMembers(kk, forceRefresh: forceRefresh);
 
-    // Setelah data keluarga berhasil di-load, batch load foto diri
-    // Tunggu sedikit untuk memastikan state sudah update
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
         final state = _familyCubit.state;
@@ -262,18 +226,25 @@ class _FamilyListPageState extends State<FamilyListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        centerTitle: true,
         title: const Text(
           'Data Keluarga',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: AppTheme.primaryColor),
             onPressed: () => _loadFamilyData(forceRefresh: true),
             tooltip: 'Refresh',
           ),
@@ -285,31 +256,81 @@ class _FamilyListPageState extends State<FamilyListPage> {
           // Tampilkan error message jika ada
           if (_errorMessage != null) {
             return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 60, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text(
-                      _errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _errorMessage = null;
-                          _currentKK = '';
-                        });
-                        _loadKKDataOptimized();
-                      },
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Container(
+                  padding: const EdgeInsets.all(24.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0A000000),
+                        blurRadius: 16,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFEE2E2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.error_outline_rounded,
+                          size: 44,
+                          color: Color(0xFFDC2626),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Terjadi Kesalahan',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF64748B),
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _errorMessage = null;
+                              _currentKK = '';
+                            });
+                            _loadKKDataOptimized();
+                          },
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Coba Lagi'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -317,49 +338,200 @@ class _FamilyListPageState extends State<FamilyListPage> {
 
           // Tampilkan loading untuk KK jika sedang mengambil data KK
           if (_isLoadingKK) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: AppTheme.primaryColor),
-                  SizedBox(height: 16),
-                  Text('Sedang mengambil data KK...'),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x0D000000),
+                          blurRadius: 15,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Sedang mengambil data KK...',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Mohon tunggu sebentar',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
                 ],
               ),
             );
           }
 
-          if (state is FamilyInitial) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
-            );
-          }
-
-          if (state is FamilyLoading && (state.currentMembers.isEmpty)) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
+          if (state is FamilyInitial ||
+              (state is FamilyLoading && state.currentMembers.isEmpty)) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x0D000000),
+                          blurRadius: 15,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Memuat data keluarga...',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
             );
           }
 
           if (state is FamilyError) {
             return Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Container(
+                  padding: const EdgeInsets.all(24.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0A000000),
+                        blurRadius: 16,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFEE2E2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.error_outline_rounded,
+                          size: 44,
+                          color: Color(0xFFDC2626),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Gagal Memuat Data',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        state.message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF64748B),
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _loadFamilyData(forceRefresh: true),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Coba Lagi'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
+          if (state is FamilyEmpty) {
+            return Center(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline,
-                        size: 60, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text(
-                      state.message,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.people_outline_rounded,
+                        size: 48,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () => _loadFamilyData(forceRefresh: true),
-                      child: const Text('Coba Lagi'),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Belum Ada Anggota Keluarga',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Tidak ada data anggota keluarga yang terdaftar pada nomor KK ini.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
@@ -367,171 +539,41 @@ class _FamilyListPageState extends State<FamilyListPage> {
             );
           }
 
-          if (state is FamilyEmpty) {
-            return const Center(
-              child: Text(
-                'Tidak ada data anggota keluarga',
-                style: TextStyle(fontSize: 16),
-              ),
-            );
-          }
-
           final members = state is FamilyLoaded ? state.members : [];
           final isLoadingMore = state is FamilyLoading;
+          final displayKK = _currentKK.isNotEmpty ? _currentKK : widget.kk;
 
           return RefreshIndicator(
             onRefresh: () => _loadFamilyData(forceRefresh: true),
             color: AppTheme.primaryColor,
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16.0),
-              itemCount: members.length + (isLoadingMore ? 1 : 0),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: members.length + 1 + (isLoadingMore ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index >= members.length) {
+                // Header Item: Summary Card KK
+                if (index == 0) {
+                  return _buildHeaderCard(displayKK, members.length);
+                }
+
+                final memberIndex = index - 1;
+
+                if (memberIndex >= members.length) {
                   return const Center(
                     child: Padding(
-                      padding: EdgeInsets.all(16.0),
+                      padding: EdgeInsets.symmetric(vertical: 20.0),
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
+                        strokeWidth: 2.5,
+                        color: AppTheme.primaryColor,
                       ),
                     ),
                   );
                 }
 
-                final member = members[index];
+                final member = members[memberIndex];
                 final bool isCurrentUser = member.nik == widget.nikPenduduk;
-                // Foto sudah di-load via batch load, tidak perlu load lagi di sini
-                // Hanya lazy load jika foto belum ada dan item terlihat
 
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: isCurrentUser
-                        ? const BorderSide(
-                            color: AppTheme.primaryColor, width: 2)
-                        : BorderSide.none,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: isCurrentUser
-                                  ? AppTheme.primaryColor
-                                  : Colors.grey.shade200,
-                              backgroundImage:
-                                  (_fotoDiriByNik[member.nik] != null &&
-                                          _fotoDiriByNik[member.nik]!
-                                              .trim()
-                                              .isNotEmpty)
-                                      ? NetworkImage(
-                                          _fotoDiriByNik[member.nik]!,
-                                        )
-                                      : null,
-                              child: (_fotoDiriByNik[member.nik] == null ||
-                                      _fotoDiriByNik[member.nik]!
-                                          .trim()
-                                          .isEmpty)
-                                  ? Icon(
-                                      Icons.person,
-                                      color: isCurrentUser
-                                          ? Colors.white
-                                          : Colors.grey.shade700,
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    member.fullName,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'NIK: ${member.nik}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(member.familyStatus),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            _formatFamilyStatus(member.familyStatus),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        if (isCurrentUser)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              '(Anda)',
-                              style: TextStyle(
-                                fontStyle: FontStyle.italic,
-                                color: AppTheme.primaryColor,
-                              ),
-                            ),
-                          ),
-
-                        // Documents button
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          FamilyMemberDocumentsPage(
-                                        nik: member.nik,
-                                        name: member.fullName,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.file_copy, size: 18),
-                                label: const Text('Dokumen'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppTheme.primaryColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+                return _buildMemberCard(member, isCurrentUser);
               },
             ),
           );
@@ -540,13 +582,427 @@ class _FamilyListPageState extends State<FamilyListPage> {
     );
   }
 
-  Color _getStatusColor(String status) {
-    status = status.toLowerCase();
-    if (status.contains('kepala keluarga')) return Colors.blue.shade700;
-    if (status.contains('istri')) return Colors.pink.shade400;
-    if (status.contains('anak')) return Colors.green.shade600;
-    if (status.contains('cucu')) return Colors.orange.shade600;
-    return Colors.purple.shade400;
+  /// Header summary card for Kartu Keluarga
+  Widget _buildHeaderCard(String kkNumber, int totalMembers) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0F2FE),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.cottage_rounded,
+              color: AppTheme.primaryColor,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Nomor Kartu Keluarga (KK)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  kkNumber.isNotEmpty ? kkNumber : '-',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (totalMembers > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.groups_rounded,
+                    size: 16,
+                    color: Color(0xFF475569),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '$totalMembers Orang',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Modern Card for Family Member
+  Widget _buildMemberCard(dynamic member, bool isCurrentUser) {
+    final statusColorData = _getStatusBadge(member.familyStatus);
+    final photoUrl = _fotoDiriByNik[member.nik];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isCurrentUser
+              ? AppTheme.primaryColor.withValues(alpha: 0.8)
+              : const Color(0xFFE2E8F0),
+          width: isCurrentUser ? 1.6 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isCurrentUser
+                ? AppTheme.primaryColor.withValues(alpha: 0.08)
+                : const Color(0x08000000),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _navigateToDocuments(member),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Member Avatar
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isCurrentUser
+                              ? AppTheme.primaryColor
+                              : const Color(0xFFE2E8F0),
+                          width: 2,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: (photoUrl != null && photoUrl.trim().isNotEmpty)
+                            ? Image.network(
+                                photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return _buildAvatarFallback(
+                                      member.fullName, isCurrentUser);
+                                },
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: isCurrentUser
+                                            ? AppTheme.primaryColor
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : _buildAvatarFallback(
+                                member.fullName, isCurrentUser),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Member Information
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  member.fullName,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                              if (isCurrentUser)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE0F2FE),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.person_rounded,
+                                        size: 12,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'Anda',
+                                        style: TextStyle(
+                                          color: AppTheme.primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.badge_outlined,
+                                size: 14,
+                                color: Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                member.nik,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF64748B),
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Status Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColorData.backgroundColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  statusColorData.icon,
+                                  size: 13,
+                                  color: statusColorData.textColor,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  _formatFamilyStatus(member.familyStatus),
+                                  style: TextStyle(
+                                    color: statusColorData.textColor,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Divider line
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 10),
+
+                // Button row: Lihat Dokumen
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Berkas Kependudukan',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF94A3B8),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => _navigateToDocuments(member),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.folder_open_rounded,
+                              size: 16,
+                              color: AppTheme.primaryColor,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Lihat Dokumen',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                            SizedBox(width: 2),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarFallback(String fullName, bool isCurrentUser) {
+    String initials = '';
+    final parts = fullName.trim().split(' ');
+    if (parts.isNotEmpty && parts[0].isNotEmpty) {
+      initials += parts[0][0];
+      if (parts.length > 1 && parts[1].isNotEmpty) {
+        initials += parts[1][0];
+      }
+    }
+    if (initials.isEmpty) initials = 'P';
+
+    return Container(
+      color: isCurrentUser
+          ? const Color(0xFFE0F2FE)
+          : const Color(0xFFF1F5F9),
+      child: Center(
+        child: Text(
+          initials.toUpperCase(),
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: isCurrentUser
+                ? AppTheme.primaryColor
+                : const Color(0xFF475569),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToDocuments(dynamic member) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FamilyMemberDocumentsPage(
+          nik: member.nik,
+          name: member.fullName,
+        ),
+      ),
+    );
+  }
+
+  _StatusBadgeData _getStatusBadge(String status) {
+    final lower = status.toLowerCase();
+    if (lower.contains('kepala keluarga')) {
+      return const _StatusBadgeData(
+        backgroundColor: Color(0xFFE0F2FE),
+        textColor: Color(0xFF0369A1),
+        icon: Icons.shield_outlined,
+      );
+    }
+    if (lower.contains('istri')) {
+      return const _StatusBadgeData(
+        backgroundColor: Color(0xFFFCE7F3),
+        textColor: Color(0xFFBE185D),
+        icon: Icons.favorite_border_rounded,
+      );
+    }
+    if (lower.contains('anak')) {
+      return const _StatusBadgeData(
+        backgroundColor: Color(0xFFDCFCE7),
+        textColor: Color(0xFF15803D),
+        icon: Icons.child_care_rounded,
+      );
+    }
+    if (lower.contains('cucu')) {
+      return const _StatusBadgeData(
+        backgroundColor: Color(0xFFFEF3C7),
+        textColor: Color(0xFFB45309),
+        icon: Icons.face_rounded,
+      );
+    }
+    return const _StatusBadgeData(
+      backgroundColor: Color(0xFFF3E8FF),
+      textColor: Color(0xFF7E22CE),
+      icon: Icons.person_outline_rounded,
+    );
   }
 
   String _formatFamilyStatus(String status) {
@@ -555,4 +1011,16 @@ class _FamilyListPageState extends State<FamilyListPage> {
     }
     return status;
   }
+}
+
+class _StatusBadgeData {
+  final Color backgroundColor;
+  final Color textColor;
+  final IconData icon;
+
+  const _StatusBadgeData({
+    required this.backgroundColor,
+    required this.textColor,
+    required this.icon,
+  });
 }

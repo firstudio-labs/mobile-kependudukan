@@ -1,3 +1,4 @@
+import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,9 +13,7 @@ import 'package:ladimas/presentation/widgets/asset/asset_form_text_field.dart';
 import 'package:ladimas/presentation/widgets/common/location_map_component.dart'
     show LocationMapComponent, MapMode;
 import 'package:ladimas/presentation/widgets/common/nik_dropdown_field.dart';
-import 'package:ladimas/presentation/widgets/custom_button.dart';
 import 'package:get_it/get_it.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:latlong2/latlong.dart';
@@ -133,7 +132,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
               _assetLongitude =
                   double.tryParse(coordinates[1]) ?? _assetLongitude;
               _assetPosition = LatLng(_assetLatitude, _assetLongitude);
-              // Autoload alamat dari koordinat jika alamat kosong
               if (_alamatController.text.trim().isEmpty) {
                 _reverseGeocode(_assetPosition);
               }
@@ -143,7 +141,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
 
         // Load wilayah data secara berurutan
         if (asset.provinceId != null) {
-          // Cari province code dari provinces yang sudah dimuat
           final province = _provinces.firstWhere(
             (p) => p['id'].toString() == asset.provinceId.toString(),
             orElse: () => {},
@@ -244,18 +241,23 @@ class _AssetFormPageState extends State<AssetFormPage> {
             _assetLongitude = lon;
             _alamatController.text = result['display_name'] ?? query;
           });
+          if (!mounted) return;
           _mapController.move(pos, 15.0);
           MessageService.showSuccessSnackBar(context, 'Lokasi ditemukan');
         } else {
-          MessageService.showErrorSnackBar(
-              context, 'Lokasi tidak ditemukan. Coba kata kunci lain.');
+          if (mounted) {
+            MessageService.showErrorSnackBar(
+                context, 'Lokasi tidak ditemukan. Coba kata kunci lain.');
+          }
         }
       } else {
         throw Exception('Gagal mencari lokasi');
       }
     } catch (e) {
-      MessageService.showErrorSnackBar(
-          context, 'Gagal mencari lokasi: ${e.toString()}');
+      if (mounted) {
+        MessageService.showErrorSnackBar(
+            context, 'Gagal mencari lokasi: ${e.toString()}');
+      }
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
@@ -265,8 +267,10 @@ class _AssetFormPageState extends State<AssetFormPage> {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        MessageService.showErrorSnackBar(
-            context, 'Layanan lokasi tidak aktif. Aktifkan GPS Anda.');
+        if (mounted) {
+          MessageService.showErrorSnackBar(
+              context, 'Layanan lokasi tidak aktif. Aktifkan GPS Anda.');
+        }
         return;
       }
       LocationPermission permission = await Geolocator.checkPermission();
@@ -274,17 +278,22 @@ class _AssetFormPageState extends State<AssetFormPage> {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied) {
-        MessageService.showErrorSnackBar(context, 'Izin lokasi ditolak.');
+        if (mounted) {
+          MessageService.showErrorSnackBar(context, 'Izin lokasi ditolak.');
+        }
         return;
       }
       if (permission == LocationPermission.deniedForever) {
-        MessageService.showErrorSnackBar(context,
-            'Izin lokasi ditolak permanen. Buka pengaturan untuk mengizinkan.');
+        if (mounted) {
+          MessageService.showErrorSnackBar(context,
+              'Izin lokasi ditolak permanen. Buka pengaturan untuk mengizinkan.');
+        }
         return;
       }
 
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
+      if (!mounted) return;
       final current = LatLng(pos.latitude, pos.longitude);
       setState(() {
         _assetPosition = current;
@@ -294,15 +303,16 @@ class _AssetFormPageState extends State<AssetFormPage> {
       _mapController.move(current, 16.0);
       _reverseGeocode(current);
     } catch (e) {
-      MessageService.showErrorSnackBar(
-          context, 'Gagal mendapatkan lokasi GPS: ${e.toString()}');
+      if (mounted) {
+        MessageService.showErrorSnackBar(
+            context, 'Gagal mendapatkan lokasi GPS: ${e.toString()}');
+      }
     }
   }
 
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       try {
-        // Create asset data
         final Map<String, dynamic> assetData = {
           'nama_aset': _namaAsetController.text,
           'nik_pemilik': _nikController.text,
@@ -321,7 +331,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
         };
 
         if (_isEditing) {
-          // Update existing asset
           await _assetCubit.updateAssetWithImages(
             widget.assetId!,
             assetData,
@@ -329,7 +338,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
             _fotoSamping,
           );
         } else {
-          // Create new asset
           await _assetCubit.createAssetWithImages(
             assetData,
             _fotoDepan,
@@ -345,7 +353,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
                 : 'Aset berhasil ditambahkan',
           );
 
-          // Refresh data before navigating back
           await _assetCubit.loadAssets();
 
           if (mounted) {
@@ -354,7 +361,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
         }
       } catch (e) {
         if (mounted) {
-          // Display error message with proper formatting for validation errors
           MessageService.showErrorDialog(
             context,
             e.toString().replaceAll('. ', '.\n'),
@@ -365,7 +371,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
         }
       }
     } else {
-      // Form validation failed
       MessageService.showErrorSnackBar(
         context,
         'Harap periksa kembali form Anda',
@@ -376,15 +381,22 @@ class _AssetFormPageState extends State<AssetFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        centerTitle: true,
         title: Text(
           _isEditing ? 'Edit Aset' : 'Tambah Aset',
-          style:
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: AppTheme.primaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
       ),
       body: BlocConsumer<AssetCubit, AssetState>(
         bloc: _assetCubit,
@@ -399,423 +411,805 @@ class _AssetFormPageState extends State<AssetFormPage> {
           return _buildForm(state);
         },
       ),
+      bottomNavigationBar: BlocBuilder<AssetCubit, AssetState>(
+        bloc: _assetCubit,
+        builder: (context, state) {
+          final isSubmitting = state is AssetSubmitting || _isLoading;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: const Border(
+                top: BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: isSubmitting ? null : _submitForm,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(
+                        _isEditing ? 'SIMPAN PERUBAHAN' : 'SIMPAN ASET',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildForm(AssetState state) {
-    final isSubmitting = state is AssetSubmitting || _isLoading;
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(16),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('Informasi Pemilik'),
-            NikDropdownField(
-              nikController: _nikController,
-              nameController: _namaPemilikController,
-              onSelected: (nik, name) {
-                _nikController.text = nik;
-                _namaPemilikController.text = name;
-              },
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Informasi Aset'),
-            AssetFormTextField(
-              controller: _namaAsetController,
-              label: 'Nama Aset',
-              validator: (value) =>
-                  value!.isEmpty ? 'Nama aset harus diisi' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedKlasifikasiId,
-              items: _klasifikasi.map((item) {
-                return DropdownMenuItem(
-                  value: item['id'].toString(),
-                  child: Text(item['jenis_klasifikasi']),
-                );
-              }).toList(),
-              hint: 'Pilih Klasifikasi',
-              onChanged: (value) {
-                setState(() {
-                  _selectedKlasifikasiId = value;
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'Klasifikasi harus dipilih' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedJenisAsetId,
-              items: _jenisAset.map((item) {
-                return DropdownMenuItem(
-                  value: item['id'].toString(),
-                  child: Text(item['jenis_aset']),
-                );
-              }).toList(),
-              hint: 'Pilih Jenis Aset',
-              onChanged: (value) {
-                setState(() {
-                  _selectedJenisAsetId = value;
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'Jenis aset harus dipilih' : null,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Alamat'),
-            AssetFormTextField(
-              controller: _alamatController,
-              label: 'Alamat',
-              maxLines: 3,
-              validator: (value) =>
-                  value!.isEmpty ? 'Alamat harus diisi' : null,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: AssetFormTextField(
-                    controller: _rtController,
-                    label: 'RT',
-                    keyboardType: TextInputType.number,
-                    validator: (value) =>
-                        value!.isEmpty ? 'RT harus diisi' : null,
+            // ------------------------------------------------ Card 1: Informasi Pemilik
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: AssetFormTextField(
-                    controller: _rwController,
-                    label: 'RW',
-                    keyboardType: TextInputType.number,
-                    validator: (value) =>
-                        value!.isEmpty ? 'RW harus diisi' : null,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedProvinceId,
-              items: _provinces.map((province) {
-                return DropdownMenuItem(
-                  value: province['id'].toString(),
-                  child: Text(province['name']),
-                );
-              }).toList(),
-              hint: 'Pilih Provinsi',
-              onChanged: (value) {
-                setState(() {
-                  _selectedProvinceId = value;
-                  _selectedDistrictId = null;
-                  _selectedSubdistrictId = null;
-                  _selectedVillageId = null;
-                });
-                if (value != null) {
-                  final province = _provinces.firstWhere(
-                      (element) => element['id'].toString() == value);
-                  _loadDistricts(province['code']);
-                }
-              },
-              validator: (value) =>
-                  value == null ? 'Provinsi harus dipilih' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedDistrictId,
-              items: _districts.map((district) {
-                return DropdownMenuItem(
-                  value: district['id'].toString(),
-                  child: Text(district['name']),
-                );
-              }).toList(),
-              hint: 'Pilih Kabupaten/Kota',
-              onChanged: (value) {
-                setState(() {
-                  _selectedDistrictId = value;
-                  _selectedSubdistrictId = null;
-                  _selectedVillageId = null;
-                });
-                if (value != null) {
-                  final district = _districts.firstWhere(
-                      (element) => element['id'].toString() == value);
-                  _loadSubdistricts(district['code']);
-                }
-              },
-              validator: (value) =>
-                  value == null ? 'Kabupaten/Kota harus dipilih' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedSubdistrictId,
-              items: _subdistricts.map((subdistrict) {
-                return DropdownMenuItem(
-                  value: subdistrict['id'].toString(),
-                  child: Text(subdistrict['name']),
-                );
-              }).toList(),
-              hint: 'Pilih Kecamatan',
-              onChanged: (value) {
-                setState(() {
-                  _selectedSubdistrictId = value;
-                  _selectedVillageId = null;
-                });
-                if (value != null) {
-                  final subdistrict = _subdistricts.firstWhere(
-                      (element) => element['id'].toString() == value);
-                  _loadVillages(subdistrict['code']);
-                }
-              },
-              validator: (value) =>
-                  value == null ? 'Kecamatan harus dipilih' : null,
-            ),
-            const SizedBox(height: 16),
-            AssetFormDropdown(
-              value: _selectedVillageId,
-              items: _villages.map((village) {
-                return DropdownMenuItem(
-                  value: village['id'].toString(),
-                  child: Text(village['name']),
-                );
-              }).toList(),
-              hint: 'Pilih Desa/Kelurahan',
-              onChanged: (value) {
-                setState(() {
-                  _selectedVillageId = value;
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'Desa/Kelurahan harus dipilih' : null,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Lokasi'),
-            const Text(
-              'Lokasi Aset',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 250,
-              child: Stack(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  LocationMapComponent(
-                    initialPosition: _assetPosition,
-                    mode: MapMode.select,
-                    onLocationSelected: (position) {
-                      setState(() {
-                        _assetPosition = position;
-                        _assetLatitude = position.latitude;
-                        _assetLongitude = position.longitude;
-                      });
-                      _reverseGeocode(position);
+                  _buildSectionHeader('INFORMASI PEMILIK'),
+                  NikDropdownField(
+                    nikController: _nikController,
+                    nameController: _namaPemilikController,
+                    onSelected: (nik, name) {
+                      _nikController.text = nik;
+                      _namaPemilikController.text = name;
                     },
-                    height: 250,
-                    mapController: _mapController,
-                    showCurrentMarker: false,
-                  ),
-                  // Marker lingkaran biru di tengah peta
-                  const Positioned.fill(
-                    child: IgnorePointer(
-                      child: Center(
-                        child: SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                              border: Border.fromBorderSide(
-                                BorderSide(color: Colors.white, width: 2),
-                              ),
-                            ),
-                            child: Icon(Icons.location_on,
-                                color: Colors.white, size: 24),
-                          ),
-                        ),
-                      ),
-                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            // Search + GPS controls
-            Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Cari Lokasi',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
-                      ),
+
+            // -------------------------------------------------- Card 2: Informasi Aset
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('INFORMASI ASET'),
+                  _gap(
+                    AssetFormTextField(
+                      controller: _namaAsetController,
+                      label: 'Nama Aset',
+                      validator: (value) =>
+                          value!.isEmpty ? 'Nama aset harus diisi' : null,
                     ),
-                    const SizedBox(height: 8),
+                  ),
+                  _gap(
+                    AssetFormDropdown(
+                      label: 'Klasifikasi',
+                      value: _selectedKlasifikasiId,
+                      items: _klasifikasi.map((item) {
+                        return DropdownMenuItem(
+                          value: item['id'].toString(),
+                          child: Text(
+                            item['jenis_klasifikasi'],
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      hint: 'Pilih Klasifikasi',
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedKlasifikasiId = value;
+                        });
+                      },
+                      validator: (value) =>
+                          value == null ? 'Klasifikasi harus dipilih' : null,
+                    ),
+                  ),
+                  AssetFormDropdown(
+                    label: 'Jenis Aset',
+                    value: _selectedJenisAsetId,
+                    items: _jenisAset.map((item) {
+                      return DropdownMenuItem(
+                        value: item['id'].toString(),
+                        child: Text(
+                          item['jenis_aset'],
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    hint: 'Pilih Jenis Aset',
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedJenisAsetId = value;
+                      });
+                    },
+                    validator: (value) =>
+                        value == null ? 'Jenis aset harus dipilih' : null,
+                  ),
+                ],
+              ),
+            ),
+
+            // ----------------------------------------------------------- Card 3: Alamat Aset
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('ALAMAT ASET'),
+                  _gap(
+                    AssetFormTextField(
+                      controller: _alamatController,
+                      label: 'Alamat',
+                      maxLines: 3,
+                      validator: (value) =>
+                          value!.isEmpty ? 'Alamat harus diisi' : null,
+                    ),
+                  ),
+                  _gap(
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: TextField(
-                            controller: _searchLocationController,
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Masukkan alamat (contoh: Jl. Sudirman, Jakarta)',
-                              prefixIcon: const Icon(Icons.search),
-                              border: const OutlineInputBorder(),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                            ),
-                            onSubmitted: (_) => _searchLocation(),
+                          child: AssetFormTextField(
+                            controller: _rtController,
+                            label: 'RT',
+                            keyboardType: TextInputType.number,
+                            validator: (value) =>
+                                value!.isEmpty ? 'RT harus diisi' : null,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 120,
-                          child: ElevatedButton.icon(
-                            onPressed: _isSearching ? null : _searchLocation,
-                            icon: _isSearching
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.search),
-                            label: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(_isSearching ? 'Mencari...' : 'Cari'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: AssetFormTextField(
+                            controller: _rwController,
+                            label: 'RW',
+                            keyboardType: TextInputType.number,
+                            validator: (value) =>
+                                value!.isEmpty ? 'RW harus diisi' : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _gap(
+                    AssetFormDropdown(
+                      label: 'Provinsi',
+                      value: _selectedProvinceId,
+                      items: _provinces.map((province) {
+                        return DropdownMenuItem(
+                          value: province['id'].toString(),
+                          child: Text(
+                            province['name'],
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      hint: 'Pilih Provinsi',
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedProvinceId = value;
+                          _selectedDistrictId = null;
+                          _selectedSubdistrictId = null;
+                          _selectedVillageId = null;
+                        });
+                        if (value != null) {
+                          final province = _provinces.firstWhere(
+                              (element) => element['id'].toString() == value);
+                          _loadDistricts(province['code']);
+                        }
+                      },
+                      validator: (value) =>
+                          value == null ? 'Provinsi harus dipilih' : null,
+                    ),
+                  ),
+                  _gap(
+                    AssetFormDropdown(
+                      label: 'Kabupaten/Kota',
+                      value: _selectedDistrictId,
+                      items: _districts.map((district) {
+                        return DropdownMenuItem(
+                          value: district['id'].toString(),
+                          child: Text(
+                            district['name'],
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      hint: 'Pilih Kabupaten/Kota',
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedDistrictId = value;
+                          _selectedSubdistrictId = null;
+                          _selectedVillageId = null;
+                        });
+                        if (value != null) {
+                          final district = _districts.firstWhere(
+                              (element) => element['id'].toString() == value);
+                          _loadSubdistricts(district['code']);
+                        }
+                      },
+                      validator: (value) =>
+                          value == null ? 'Kabupaten/Kota harus dipilih' : null,
+                    ),
+                  ),
+                  _gap(
+                    AssetFormDropdown(
+                      label: 'Kecamatan',
+                      value: _selectedSubdistrictId,
+                      items: _subdistricts.map((subdistrict) {
+                        return DropdownMenuItem(
+                          value: subdistrict['id'].toString(),
+                          child: Text(
+                            subdistrict['name'],
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      hint: 'Pilih Kecamatan',
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedSubdistrictId = value;
+                          _selectedVillageId = null;
+                        });
+                        if (value != null) {
+                          final subdistrict = _subdistricts.firstWhere(
+                              (element) => element['id'].toString() == value);
+                          _loadVillages(subdistrict['code']);
+                        }
+                      },
+                      validator: (value) =>
+                          value == null ? 'Kecamatan harus dipilih' : null,
+                    ),
+                  ),
+                  AssetFormDropdown(
+                    label: 'Desa/Kelurahan',
+                    value: _selectedVillageId,
+                    items: _villages.map((village) {
+                      return DropdownMenuItem(
+                        value: village['id'].toString(),
+                        child: Text(
+                          village['name'],
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    hint: 'Pilih Desa/Kelurahan',
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedVillageId = value;
+                      });
+                    },
+                    validator: (value) =>
+                        value == null ? 'Desa/Kelurahan harus dipilih' : null,
+                  ),
+                ],
+              ),
+            ),
+
+            // ----------------------------------------------------------- Card 4: Titik Lokasi Peta
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('PILIH LOKASI PADA PETA'),
+
+                  // Map Container
+                  Container(
+                    height: 280,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        children: [
+                          LocationMapComponent(
+                            initialPosition: _assetPosition,
+                            mode: MapMode.select,
+                            onLocationSelected: (position) {
+                              setState(() {
+                                _assetPosition = position;
+                                _assetLatitude = position.latitude;
+                                _assetLongitude = position.longitude;
+                              });
+                              _reverseGeocode(position);
+                            },
+                            height: 280,
+                            mapController: _mapController,
+                            showCurrentMarker: false,
+                          ),
+                          Positioned(
+                            left: MediaQuery.of(context).size.width * 0.5 - 40,
+                            top: 140 - 20,
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.location_on_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              minimumSize: const Size(120, 48),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Search Location
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchLocationController,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF1E293B),
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Contoh: Jl. Sudirman, Jakarta',
+                            hintStyle: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search_rounded,
+                              size: 20,
+                              color: Color(0xFF64748B),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.grey[300]!),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: const OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(10)),
+                              borderSide: BorderSide(
+                                  color: AppTheme.primaryColor, width: 1.5),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          onSubmitted: (_) => _searchLocation(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSearching ? null : _searchLocation,
+                          icon: _isSearching
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.search_rounded, size: 18),
+                          label: Text(_isSearching ? 'Mencari...' : 'Cari'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Use current location button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: _useCurrentLocation,
+                      icon: const Icon(Icons.my_location_rounded,
+                          size: 18, color: AppTheme.primaryColor),
+                      label: const Text(
+                        'Gunakan Lokasi GPS Saat Ini',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFC7D2FE)),
+                        backgroundColor: const Color(0xFFEEF2FF),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Coordinates display
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildCoordinateChip(
+                          'Latitude',
+                          _assetLatitude.toStringAsFixed(6),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildCoordinateChip(
+                          'Longitude',
+                          _assetLongitude.toStringAsFixed(6),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isSearchingAddress) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE0F2FE),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Mengambil alamat otomatis dari koordinat...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFC7D2FE)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            color: Color(0xFF4338CA), size: 18),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Koordinat akan otomatis terupdate saat Anda menggeser peta atau mencari alamat',
+                            style: TextStyle(
+                              color: Color(0xFF4338CA),
+                              fontSize: 12,
+                              height: 1.4,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: _useCurrentLocation,
-                      icon: const Icon(Icons.my_location),
-                      label: const Text('Gunakan GPS'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Latitude: ${_assetLatitude.toStringAsFixed(6)}',
-                    style: TextStyle(color: Colors.grey.shade700),
                   ),
-                ),
-                Expanded(
-                  child: Text(
-                    'Longitude: ${_assetLongitude.toStringAsFixed(6)}',
-                    style: TextStyle(color: Colors.grey.shade700),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-            if (_isSearchingAddress) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: const [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 8),
-                  Text('Mengambil alamat dari koordinat ...'),
                 ],
               ),
-            ],
-            const SizedBox(height: 24),
-            _buildSectionTitle('Foto Aset'),
-            Row(
-              children: [
-                Expanded(
-                  child: AssetFormImagePicker(
-                    label: 'Foto Depan',
-                    initialImageUrl: state is AssetDetailLoaded &&
-                            state.asset.fotoDepan != null
-                        ? AppConstants.storageFileUrl(state.asset.fotoDepan)
-                        : null,
-                    onImageSelected: (image) {
-                      setState(() {
-                        _fotoDepan = image;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: AssetFormImagePicker(
-                    label: 'Foto Samping',
-                    initialImageUrl: state is AssetDetailLoaded &&
-                            state.asset.fotoSamping != null
-                        ? AppConstants.storageFileUrl(state.asset.fotoSamping)
-                        : null,
-                    onImageSelected: (image) {
-                      setState(() {
-                        _fotoSamping = image;
-                      });
-                    },
-                  ),
-                ),
-              ],
             ),
-            const SizedBox(height: 32),
-            CustomButton(
-              text: 'Simpan',
-              onPressed: _submitForm,
-              isLoading: isSubmitting,
+
+            // --------------------------------------------------------- Card 5: Foto Aset
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('FOTO ASET'),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: AssetFormImagePicker(
+                          label: 'Foto Depan',
+                          initialImageUrl: state is AssetDetailLoaded &&
+                                  state.asset.fotoDepan != null
+                              ? AppConstants.storageFileUrl(
+                                  state.asset.fotoDepan)
+                              : null,
+                          onImageSelected: (image) {
+                            setState(() {
+                              _fotoDepan = image;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AssetFormImagePicker(
+                          label: 'Foto Samping',
+                          initialImageUrl: state is AssetDetailLoaded &&
+                                  state.asset.fotoSamping != null
+                              ? AppConstants.storageFileUrl(
+                                  state.asset.fotoSamping)
+                              : null,
+                          onImageSelected: (image) {
+                            setState(() {
+                              _fotoSamping = image;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
+
+            // ------------------------------------------------------ Kotak info bawah
+            Container(
+              margin: const EdgeInsets.only(bottom: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFC7D2FE)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF4338CA),
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Pastikan data pemilik, spesifikasi aset, alamat, dan pin lokasi pada peta sudah sesuai sebelum disimpan.',
+                      style: TextStyle(
+                        color: Color(0xFF4338CA),
+                        fontSize: 13,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _gap(Widget child) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 16),
+      child: child,
+    );
+  }
+
+  Widget _buildDivider() {
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
       child: Text(
-        title,
+        text,
         style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppTheme.primaryColor,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1E293B),
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, [IconData? icon]) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primaryColor,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoordinateChip(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(label),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.pin_drop_outlined,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF334155),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -827,9 +1221,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('=== Provinces Data ===');
-      print('Response: ${data['data']}');
-      print('====================');
       setState(() {
         _provinces = List<Map<String, dynamic>>.from(data['data']);
       });
@@ -862,7 +1253,6 @@ class _AssetFormPageState extends State<AssetFormPage> {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-
       setState(() {
         _subdistricts = List<Map<String, dynamic>>.from(data['data']);
       });
@@ -878,22 +1268,36 @@ class _AssetFormPageState extends State<AssetFormPage> {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-
       setState(() {
         _villages = List<Map<String, dynamic>>.from(data['data']);
       });
     }
   }
 
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-API-Key': AppConstants.apiKey,
+    };
+    try {
+      final authLocalStorage = GetIt.instance<AuthLocalStorage>();
+      final rawToken = await authLocalStorage.getStoredToken();
+      if (rawToken != null && rawToken.isNotEmpty) {
+        final token =
+            rawToken.contains('|') ? rawToken.split('|')[1] : rawToken;
+        headers['Authorization'] = 'Bearer $token';
+      }
+    } catch (_) {}
+    return headers;
+  }
+
   Future<void> _loadKlasifikasi() async {
     try {
+      final headers = await _getAuthHeaders();
       final response = await http.get(
         Uri.parse('${AppConstants.authApiUrl}/klasifikasi'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-API-Key': AppConstants.apiKey,
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -910,20 +1314,19 @@ class _AssetFormPageState extends State<AssetFormPage> {
             'Failed to load klasifikasi. Status: ${response.statusCode}');
       }
     } catch (e) {
-      MessageService.showErrorSnackBar(
-          context, 'Gagal memuat data klasifikasi: $e');
+      if (mounted) {
+        MessageService.showErrorSnackBar(
+            context, 'Gagal memuat data klasifikasi: $e');
+      }
     }
   }
 
   Future<void> _loadJenisAset() async {
     try {
+      final headers = await _getAuthHeaders();
       final response = await http.get(
         Uri.parse('${AppConstants.authApiUrl}/jenis-aset'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-API-Key': AppConstants.apiKey,
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -940,31 +1343,10 @@ class _AssetFormPageState extends State<AssetFormPage> {
             'Failed to load jenis aset. Status: ${response.statusCode}');
       }
     } catch (e) {
-      MessageService.showErrorSnackBar(
-          context, 'Gagal memuat data jenis aset: $e');
-    }
-  }
-
-  Future<void> _pickImage(bool isDepan) async {
-    final ImagePicker picker = ImagePicker();
-    try {
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        imageQuality: 80,
-      );
-
-      if (image != null) {
-        setState(() {
-          if (isDepan) {
-            _fotoDepan = File(image.path);
-          } else {
-            _fotoSamping = File(image.path);
-          }
-        });
+      if (mounted) {
+        MessageService.showErrorSnackBar(
+            context, 'Gagal memuat data jenis aset: $e');
       }
-    } catch (e) {
-      MessageService.showErrorSnackBar(context, 'Gagal memilih gambar: $e');
     }
   }
 }

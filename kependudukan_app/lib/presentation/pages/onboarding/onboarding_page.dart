@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ladimas/core/theme/app_theme.dart';
 import 'package:ladimas/presentation/pages/auth/login_page.dart';
 import 'package:ladimas/presentation/pages/auth/register_page.dart';
 import 'package:ladimas/presentation/widgets/custom_button.dart';
@@ -20,7 +21,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       'description':
           'Kelola data kependudukan Anda secara mudah dan cepat melalui aplikasi ini',
       'image': 'assets/app_icon_padded.png',
-      'color': const Color(0xFF4A47DC),
+      'color': AppTheme.primaryColor,
     },
     {
       'title': 'Akses Layanan Kapan Saja',
@@ -66,13 +67,18 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final isShortScreen = screenHeight < 720;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF4A47DC),
+      backgroundColor: AppTheme.primaryColor,
       body: SafeArea(
         child: Column(
           children: [
+            // Illustration / PageView
             Expanded(
-              flex: 6,
+              flex: isShortScreen ? 45 : 50,
               child: PageView.builder(
                 controller: _pageController,
                 onPageChanged: _onPageChanged,
@@ -80,10 +86,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 itemBuilder: (context, index) => _buildOnboardingPage(index),
               ),
             ),
+
+            // Bottom Content Card
             Expanded(
-              flex: 4,
+              flex: isShortScreen ? 55 : 50,
               child: Container(
-                padding: const EdgeInsets.all(32),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
@@ -91,72 +98,100 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _onboardingData[_currentPage]['title'],
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _onboardingData[_currentPage]['description'],
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const Spacer(),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final hPadding = 28.0;
+                    final vPadding = isShortScreen ? 20.0 : 28.0;
 
-                    // Buttons and indicators row
-                    Row(
-                      children: [
-                        // Page indicators
-                        Row(
-                          children: List.generate(
-                            _onboardingData.length,
-                            (index) => _buildDotIndicator(index),
+                    return SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: hPadding,
+                              vertical: vPadding,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _onboardingData[_currentPage]['title'],
+                                  style: TextStyle(
+                                    fontSize: isShortScreen ? 22 : 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF333333),
+                                  ),
+                                ),
+                                SizedBox(height: isShortScreen ? 10 : 14),
+                                Text(
+                                  _onboardingData[_currentPage]['description'],
+                                  style: TextStyle(
+                                    fontSize: isShortScreen ? 13 : 14,
+                                    color: Colors.grey.shade600,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const Spacer(),
+
+                                // Page indicators and "Lanjut" button (on non-last pages)
+                                Row(
+                                  children: [
+                                    // Page indicators
+                                    Row(
+                                      children: List.generate(
+                                        _onboardingData.length,
+                                        (index) => _buildDotIndicator(index),
+                                      ),
+                                    ),
+                                    const Spacer(),
+
+                                    // Navigation button(s)
+                                    if (_currentPage < _onboardingData.length - 1)
+                                      SizedBox(
+                                        width: 120,
+                                        child: CustomButton(
+                                          height: isShortScreen ? 46 : 50,
+                                          text: 'Lanjut',
+                                          onPressed: () {
+                                            _pageController.nextPage(
+                                              duration: const Duration(
+                                                  milliseconds: 300),
+                                              curve: Curves.easeInOut,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                  ],
+                                ),
+
+                                // Login & Register buttons (only on the last page)
+                                if (_currentPage == _onboardingData.length - 1) ...[
+                                  SizedBox(height: isShortScreen ? 14 : 18),
+                                  CustomButton(
+                                    height: isShortScreen ? 48 : 52,
+                                    text: 'Masuk',
+                                    onPressed: _navigateToLogin,
+                                  ),
+                                  SizedBox(height: isShortScreen ? 10 : 12),
+                                  CustomButton(
+                                    height: isShortScreen ? 48 : 52,
+                                    text: 'Daftar',
+                                    onPressed: _navigateToRegister,
+                                    backgroundColor: Colors.white,
+                                    textColor: AppTheme.primaryColor,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
-                        const Spacer(),
-
-                        // Navigation button(s)
-                        _currentPage < _onboardingData.length - 1
-                            ? SizedBox(
-                                width: 120,
-                                child: CustomButton(
-                                  height: 50,
-                                  text: 'Lanjut',
-                                  onPressed: () {
-                                    _pageController.nextPage(
-                                      duration:
-                                          const Duration(milliseconds: 300),
-                                      curve: Curves.easeInOut,
-                                    );
-                                  },
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ],
-                    ),
-
-                    // Login & Register buttons (only on the last page)
-                    if (_currentPage == _onboardingData.length - 1) ...[
-                      const SizedBox(height: 20),
-                      CustomButton(text: 'Masuk', onPressed: _navigateToLogin),
-                      const SizedBox(height: 12),
-                      CustomButton(
-                        text: 'Daftar',
-                        onPressed: _navigateToRegister,
-                        backgroundColor: Colors.white,
-                        textColor: const Color(0xFF4A47DC),
                       ),
-                    ],
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -167,92 +202,105 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Widget _buildOnboardingPage(int index) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Center(
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Background decorations
-            Positioned(
-              top: 50,
-              left: 20,
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: const BoxDecoration(
-                  color: Colors.white24,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 80,
-              right: 10,
-              child: Container(
-                width: 20,
-                height: 20,
-                decoration: const BoxDecoration(
-                  color: Colors.white24,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight;
+        final isCompact = availableHeight < 320;
+        final circleSize = isCompact ? 100.0 : 120.0;
+        final outerPad = isCompact ? 12.0 : 16.0;
+        final midPad = isCompact ? 20.0 : 32.0;
+        final iconSize = isCompact ? 50.0 : 60.0;
+        final imageSize = isCompact ? 75.0 : 90.0;
 
-            // Illustration
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ClipOval(
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(60),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: _onboardingData[index]['image'] is String
-                            ? Center(
-                                child: Image.asset(
-                                  _onboardingData[index]['image'],
-                                  width: 90,
-                                  height: 90,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Icon(
-                                _onboardingData[index]['image'],
-                                size: 60,
-                                color: _onboardingData[index]['color'],
-                              ),
-                      ),
+        return Container(
+          padding: EdgeInsets.all(isCompact ? 16 : 32),
+          child: Center(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Background decorations
+                Positioned(
+                  top: isCompact ? 20 : 50,
+                  left: 20,
+                  child: Container(
+                    width: isCompact ? 24 : 30,
+                    height: isCompact ? 24 : 30,
+                    decoration: const BoxDecoration(
+                      color: Colors.white24,
+                      shape: BoxShape.circle,
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                Positioned(
+                  bottom: isCompact ? 40 : 80,
+                  right: 10,
+                  child: Container(
+                    width: isCompact ? 16 : 20,
+                    height: isCompact ? 16 : 20,
+                    decoration: const BoxDecoration(
+                      color: Colors.white24,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+
+                // Illustration
+                Container(
+                  padding: EdgeInsets.all(outerPad),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Container(
+                    padding: EdgeInsets.all(midPad),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClipOval(
+                          child: Container(
+                            width: circleSize,
+                            height: circleSize,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius:
+                                  BorderRadius.circular(circleSize / 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: _onboardingData[index]['image'] is String
+                                ? Center(
+                                    child: Image.asset(
+                                      _onboardingData[index]['image'],
+                                      width: imageSize,
+                                      height: imageSize,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Icon(
+                                    _onboardingData[index]['image'],
+                                    size: iconSize,
+                                    color: _onboardingData[index]['color'],
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -263,7 +311,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       width: _currentPage == index ? 24 : 8,
       decoration: BoxDecoration(
         color: _currentPage == index
-            ? const Color(0xFF4A47DC)
+            ? AppTheme.primaryColor
             : Colors.grey.shade300,
         borderRadius: BorderRadius.circular(4),
       ),
