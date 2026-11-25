@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/core/utils/image_utils.dart';
 import 'package:ladimas/data/models/document_model.dart';
 import 'package:ladimas/presentation/cubits/document/document_cubit.dart';
@@ -886,8 +887,8 @@ class _FamilyMemberDocumentsPageState extends State<FamilyMemberDocumentsPage> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                DateFormat('dd MMM yyyy, HH:mm')
-                                    .format(document.updatedAt!),
+                                AppDateFormatter.formatDateTime(
+                                    document.updatedAt!),
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Color(0xFF94A3B8),

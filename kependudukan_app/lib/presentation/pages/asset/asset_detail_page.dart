@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/data/models/asset_model.dart';
 import 'package:ladimas/presentation/cubits/asset/asset_cubit.dart';
 import 'package:ladimas/presentation/cubits/asset/asset_state.dart';
@@ -246,7 +247,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
               if (asset.createdAt != null)
                 _buildInfoRow(
                   'Tanggal Registrasi',
-                  DateFormat('dd MMMM yyyy').format(asset.createdAt!),
+                  AppDateFormatter.formatDate(asset.createdAt!),
                   Icons.calendar_today_outlined,
                 ),
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'package:ladimas/data/datasources/agenda_api_service.dart';
 import 'package:ladimas/data/models/agenda_model.dart';
@@ -67,12 +68,7 @@ class _AgendaDetailPageState extends State<AgendaDetailPage> {
   }
 
   String _formatDate(String value) {
-    try {
-      final date = DateTime.parse(value);
-      return DateFormat('dd MMMM yyyy HH:mm', 'id_ID').format(date);
-    } catch (_) {
-      return value;
-    }
+    return AppDateFormatter.formatDateTime(value);
   }
 
   String _stripHtml(String input) {
@@ -91,9 +87,10 @@ class _AgendaDetailPageState extends State<AgendaDetailPage> {
     String month = '';
     if (_detail != null) {
       try {
-        DateTime dt = DateTime.parse(_detail!.createdAt);
-        day = DateFormat('dd').format(dt);
-        month = DateFormat('MMM').format(dt).toUpperCase();
+        DateTime dt =
+            AppDateFormatter.parseToLocal(_detail!.createdAt) ?? DateTime.now();
+        day = dt.day.toString().padLeft(2, '0');
+        month = AppDateFormatter.getMonthShort(dt.month).toUpperCase();
       } catch (_) {
         day = '--';
         month = 'TGL';

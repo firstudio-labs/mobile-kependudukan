@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/data/models/tagihan_model.dart';
 import 'package:ladimas/data/services/tagihan_service.dart';
@@ -435,26 +436,6 @@ class _TagihanDetailPageState extends State<TagihanDetailPage> {
   }
 
   String _formatDateTime(String dateTime) {
-    try {
-      final DateTime date = DateTime.parse(dateTime);
-      final List<String> bulan = [
-        'Januari',
-        'Februari',
-        'Maret',
-        'April',
-        'Mei',
-        'Juni',
-        'Juli',
-        'Agustus',
-        'September',
-        'Oktober',
-        'November',
-        'Desember'
-      ];
-
-      return '${date.day} ${bulan[date.month - 1]} ${date.year}, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} WIB';
-    } catch (e) {
-      return dateTime;
-    }
+    return AppDateFormatter.formatDateTime(dateTime);
   }
 }

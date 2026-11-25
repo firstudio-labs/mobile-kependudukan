@@ -939,34 +939,18 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color:
-                                AppTheme.primaryColor.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color:
-                                  AppTheme.primaryColor.withValues(alpha: 0.2),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              'assets/app_icon.png',
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  Icons.person,
-                                  color: AppTheme.primaryColor,
-                                  size: 24,
-                                );
-                              },
-                            ),
-                          ),
+                        Image.asset(
+                          'assets/app_icon.png',
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.person,
+                              color: AppTheme.primaryColor,
+                              size: 28,
+                            );
+                          },
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -2387,42 +2371,121 @@ class _AdminBerandaPageState extends State<AdminBerandaPage> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Konfirmasi',
-          style: TextStyle(
-              color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon Badge Modern
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFFECACA),
+                    width: 2,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.logout_rounded,
+                    color: Color(0xFFDC2626),
+                    size: 32,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Judul & Deskripsi
+              const Text(
+                'Konfirmasi Keluar',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Apakah Anda yakin ingin keluar dari akun Anda?',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+
+              // Tombol Batal & Keluar
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(
+                              color: Color(0xFFE2E8F0), width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          foregroundColor: const Color(0xFF64748B),
+                          backgroundColor: const Color(0xFFF8FAFC),
+                        ),
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          context.read<AuthBloc>().add(LogoutEvent());
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Ya, Keluar',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        content: const Text('Apakah Anda yakin ingin keluar?',
-            style: TextStyle(fontSize: 16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.grey[800],
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            ),
-            child: const Text('BATAL',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.read<AuthBloc>().add(LogoutEvent());
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[600],
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            ),
-            child: const Text('KELUAR',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
   }

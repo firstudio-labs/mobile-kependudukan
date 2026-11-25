@@ -10,10 +10,14 @@ import 'package:ladimas/presentation/cubits/domisili/domisili_cubit.dart';
 import 'package:ladimas/presentation/cubits/family/family_cubit.dart';
 import 'package:ladimas/presentation/pages/splash/splash_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+
+  // Initialize date formatting for Indonesia locale
+  await initializeDateFormatting('id_ID', null);
 
   // Initialize the dependency injection
   await di.init();

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../../../core/error/exceptions.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/app_date_formatter.dart';
 import '../../../data/datasources/auth_local_storage.dart';
 import '../../../data/datasources/riwayat_surat_api_service.dart';
 import '../../../data/models/riwayat_surat_model.dart';
@@ -73,12 +74,7 @@ class _RiwayatSuratPageState extends State<RiwayatSuratPage> {
   }
 
   String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(date);
-    } catch (e) {
-      return dateString;
-    }
+    return AppDateFormatter.formatDateTime(dateString);
   }
 
   String _getStatusText(int isAccepted) {

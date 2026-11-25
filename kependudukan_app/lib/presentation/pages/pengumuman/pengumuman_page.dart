@@ -5,6 +5,7 @@ import 'package:ladimas/data/datasources/auth_local_storage.dart';
 import 'package:ladimas/data/datasources/pengumuman_api_service.dart';
 import 'package:ladimas/data/models/pengumuman_model.dart';
 import 'package:ladimas/core/error/exceptions.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'pengumuman_detail_page.dart';
 
 class PengumumanPage extends StatefulWidget {
@@ -65,12 +66,7 @@ class _PengumumanPageState extends State<PengumumanPage> {
   }
 
   String _formatDate(String value) {
-    try {
-      final date = DateTime.parse(value);
-      return DateFormat('dd MMM yyyy HH:mm', 'id_ID').format(date);
-    } catch (_) {
-      return value;
-    }
+    return AppDateFormatter.formatDateTime(value);
   }
 
   String _stripHtml(String input) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/domain/repositories/auth_repository.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
@@ -168,12 +169,7 @@ class _ProfileDetailsPageState extends State<ProfileDetailsPage> {
     if (dateString == null || dateString.isEmpty) {
       return '-';
     }
-    try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('dd MMMM yyyy', 'id_ID').format(date);
-    } catch (e) {
-      return dateString;
-    }
+    return AppDateFormatter.formatDate(dateString);
   }
 
   @override

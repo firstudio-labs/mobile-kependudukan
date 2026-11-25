@@ -1061,34 +1061,18 @@ class _BerandaPageState extends State<BerandaPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color:
-                                AppTheme.primaryColor.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color:
-                                  AppTheme.primaryColor.withValues(alpha: 0.2),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              'assets/app_icon.png',
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  Icons.person,
-                                  color: AppTheme.primaryColor,
-                                  size: 24,
-                                );
-                              },
-                            ),
-                          ),
+                        Image.asset(
+                          'assets/app_icon.png',
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.person,
+                              color: AppTheme.primaryColor,
+                              size: 28,
+                            );
+                          },
                         ),
                         const SizedBox(width: 12),
                         Expanded(

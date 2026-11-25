@@ -764,39 +764,40 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
   // Komponen Label yang lebih elegan
   Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF475569), // Warna slate yang modern
+          color: Color(0xFF1E293B),
         ),
       ),
     );
   }
 
-  // Komponen Header Section
+  // Komponen Header Section - style domisili (garis vertikal biru)
   Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 4,
+            height: 18,
             decoration: BoxDecoration(
-              color: const Color(0xFFEEF2FF),
-              borderRadius: BorderRadius.circular(10),
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(2),
             ),
-            child: Icon(icon, color: AppTheme.primaryColor, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Text(
-            title,
+            title.toUpperCase(),
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.primaryColor,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -808,14 +809,13 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
   Widget build(BuildContext context) {
     print('🎨 [BIODATA_PAGE] build() dirender: ${_stopwatch.elapsedMilliseconds}ms sejak initState (isLoading: $_isLoading)');
     return Scaffold(
-        backgroundColor: Colors.white, // Background terang dan bersih
+        backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
           centerTitle: true,
           title: const Text(
             'Edit Biodata',
             style: TextStyle(
-              color:
-                  AppTheme.primaryColor, // Teks biru gelap yang lebih berwibawa
+              color: AppTheme.primaryColor,
               fontWeight: FontWeight.bold,
               fontSize: 18,
             ),
@@ -829,7 +829,7 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
         body: Stack(children: [
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
               child: KeyedSubtree(
@@ -837,181 +837,181 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                  _buildSectionHeader(
-                      'Data Pribadi', Icons.person_outline_rounded),
 
-                  // Dropdown NIK
-                  _buildNikDropdown(),
+                  // Card: Data Pribadi (readonly)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('Data Pribadi', Icons.person_outline_rounded),
 
-                  // Nama Lengkap (Readonly)
-                  _buildTextField(
-                    controller: _nameController,
-                    label: 'Nama Lengkap',
-                    enabled: false,
-                  ),
+                        // Dropdown NIK
+                        _buildNikDropdown(),
 
-                  // KK (Readonly)
-                  _buildTextField(
-                    controller: _kkController,
-                    label: 'Nomor Kartu Keluarga (KK)',
-                    enabled: false,
-                  ),
-
-                  // Jenis Kelamin (Readonly)
-                  _buildTextField(
-                    controller: _jenisKelaminController,
-                    label: 'Jenis Kelamin',
-                    enabled: false,
-                  ),
-
-                  // Umur (Readonly)
-                  _buildTextField(
-                    controller: _umurController,
-                    label: 'Umur',
-                    keyboardType: TextInputType.number,
-                    enabled: false,
-                  ),
-
-                  // Tempat Lahir (Readonly)
-                  _buildTextField(
-                    controller: _tempatLahirController,
-                    label: 'Tempat Lahir',
-                    enabled: false,
-                  ),
-
-                  // Tanggal Lahir (Readonly)
-                  _buildTextField(
-                    controller: _tanggalLahirController,
-                    label: 'Tanggal Lahir (YYYY-MM-DD)',
-                    enabled: false,
-                  ),
-
-                  // Alamat (Readonly)
-                  _buildTextField(
-                    controller: _alamatController,
-                    label: 'Alamat',
-                    maxLines: 3,
-                    enabled: false,
-                  ),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _rtController,
-                          label: 'RT',
+                        // Nama Lengkap (Readonly)
+                        _buildTextField(
+                          controller: _nameController,
+                          label: 'Nama Lengkap',
                           enabled: false,
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _rwController,
-                          label: 'RW',
+
+                        // KK (Readonly)
+                        _buildTextField(
+                          controller: _kkController,
+                          label: 'Nomor Kartu Keluarga (KK)',
                           enabled: false,
                         ),
-                      ),
-                    ],
-                  ),
 
-                  // Provinsi (Readonly)
-                  _buildTextField(
-                    controller: _provinsiController,
-                    label: 'Provinsi',
-                    enabled: false,
-                  ),
-
-                  // Kabupaten (Readonly)
-                  _buildTextField(
-                    controller: _kabupatenController,
-                    label: 'Kabupaten',
-                    enabled: false,
-                  ),
-
-                  // Kecamatan (Readonly)
-                  _buildTextField(
-                    controller: _kecamatanController,
-                    label: 'Kecamatan',
-                    enabled: false,
-                  ),
-
-                  // Desa (Readonly)
-                  _buildTextField(
-                    controller: _desaController,
-                    label: 'Desa',
-                    enabled: false,
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Golongan Darah
-                  _buildBloodTypeDropdown(),
-
-                  // Pendidikan Terakhir
-                  _buildEducationDropdown(),
-
-                  // Pekerjaan
-                  _buildJobDropdown(),
-
-                  const SizedBox(height: 16),
-
-                  // Tombol Request Approval
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed:
-                          _isRequestingApproval ? null : _requestAdminApproval,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        elevation: 2,
-                        shadowColor:
-                            AppTheme.primaryColor.withValues(alpha: 0.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        // Jenis Kelamin (Readonly)
+                        _buildTextField(
+                          controller: _jenisKelaminController,
+                          label: 'Jenis Kelamin',
+                          enabled: false,
                         ),
-                      ),
-                      child: _isRequestingApproval
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : const Text(
-                              'Minta Persetujuan Admin',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.3,
+
+                        // Umur (Readonly)
+                        _buildTextField(
+                          controller: _umurController,
+                          label: 'Umur',
+                          keyboardType: TextInputType.number,
+                          enabled: false,
+                        ),
+
+                        // Tempat Lahir (Readonly)
+                        _buildTextField(
+                          controller: _tempatLahirController,
+                          label: 'Tempat Lahir',
+                          enabled: false,
+                        ),
+
+                        // Tanggal Lahir (Readonly)
+                        _buildTextField(
+                          controller: _tanggalLahirController,
+                          label: 'Tanggal Lahir (YYYY-MM-DD)',
+                          enabled: false,
+                        ),
+
+                        // Alamat (Readonly)
+                        _buildTextField(
+                          controller: _alamatController,
+                          label: 'Alamat',
+                          maxLines: 3,
+                          enabled: false,
+                        ),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTextField(
+                                controller: _rtController,
+                                label: 'RT',
+                                enabled: false,
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildTextField(
+                                controller: _rwController,
+                                label: 'RW',
+                                enabled: false,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Provinsi (Readonly)
+                        _buildTextField(
+                          controller: _provinsiController,
+                          label: 'Provinsi',
+                          enabled: false,
+                        ),
+
+                        // Kabupaten (Readonly)
+                        _buildTextField(
+                          controller: _kabupatenController,
+                          label: 'Kabupaten',
+                          enabled: false,
+                        ),
+
+                        // Kecamatan (Readonly)
+                        _buildTextField(
+                          controller: _kecamatanController,
+                          label: 'Kecamatan',
+                          enabled: false,
+                        ),
+
+                        // Desa (Readonly) - no bottom margin for last field
+                        _buildTextField(
+                          controller: _desaController,
+                          label: 'Desa',
+                          enabled: false,
+                        ),
+                      ],
                     ),
                   ),
 
-                  const SizedBox(height: 20),
-
-                  // Kotak Informasi Biru (Clean and Modern)
+                  // Card: Data yang Bisa Diubah
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEEF2FF), // Indigo 50
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('Data yang Dapat Diubah', Icons.edit_outlined),
+
+                        // Golongan Darah
+                        _buildBloodTypeDropdown(),
+
+                        // Pendidikan Terakhir
+                        _buildEducationDropdown(),
+
+                        // Pekerjaan
+                        _buildJobDropdown(),
+                      ],
+                    ),
+                  ),
+
+                  // Info box
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: const Color(0xFFC7D2FE)), // Indigo 200
+                      border: Border.all(color: const Color(0xFFC7D2FE)),
                     ),
                     child: const Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.info_outline_rounded,
-                            color: Color(0xFF4338CA), size: 20),
-                        SizedBox(width: 12),
+                            color: Color(0xFF4338CA), size: 18),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Perubahan data akan diproses setelah mendapat persetujuan dari admin desa',
@@ -1026,7 +1026,8 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -1040,7 +1041,55 @@ class _BiodataEditPageState extends State<BiodataEditPage> {
               minHeight: 3,
             ),
           ),
-      ]));
+      ]),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: const Border(
+            top: BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _isRequestingApproval ? null : _requestAdminApproval,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isRequestingApproval
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text(
+                    'KIRIM PERMINTAAN PERUBAHAN',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
   }
 
   // Desain TextField yang elegan & ultra-ringan untuk readonly field

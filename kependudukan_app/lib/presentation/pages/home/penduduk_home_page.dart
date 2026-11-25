@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ladimas/core/services/message_service.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/domain/entities/penduduk.dart';
 import 'package:ladimas/domain/repositories/auth_repository.dart';
 import 'package:ladimas/presentation/blocs/auth/auth_bloc.dart';
@@ -758,24 +759,7 @@ class _PendudukHomePageState extends State<PendudukHomePage>
 
   String _formatDate(String dateString) {
     if (dateString.isEmpty) return 'Tanggal tidak valid';
-    try {
-      DateTime date;
-      if (dateString.contains('T')) {
-        final datePart = dateString.split('T')[0];
-        final parts = datePart.split('-');
-        if (parts.length == 3) {
-          date = DateTime(
-              int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-        } else {
-          date = DateTime.parse(dateString);
-        }
-      } else {
-        date = DateTime.parse(dateString);
-      }
-      return DateFormat('dd MMMM yyyy').format(date);
-    } catch (e) {
-      return 'Tanggal tidak valid';
-    }
+    return AppDateFormatter.formatDate(dateString);
   }
 
   String _stripHtml(String input) {
@@ -2048,9 +2032,10 @@ class _PendudukHomePageState extends State<PendudukHomePage>
     String day = '';
     String month = '';
     try {
-      DateTime dt = DateTime.parse(agenda.createdAt);
-      day = DateFormat('dd').format(dt);
-      month = DateFormat('MMM').format(dt).toUpperCase();
+      DateTime dt =
+          AppDateFormatter.parseToLocal(agenda.createdAt) ?? DateTime.now();
+      day = dt.day.toString().padLeft(2, '0');
+      month = AppDateFormatter.getMonthShort(dt.month).toUpperCase();
     } catch (_) {
       day = '--';
       month = 'TGL';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ladimas/core/constants/app_constants.dart';
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import 'package:ladimas/data/models/laporan_model.dart';
 import 'package:intl/intl.dart';
 
@@ -96,8 +97,7 @@ class LaporanDetailPage extends StatelessWidget {
                           ),
                           const SizedBox(width: 5),
                           Text(
-                            DateFormat('dd MMM yyyy, HH:mm')
-                                .format(report.createdAt),
+                            AppDateFormatter.formatDateTime(report.createdAt),
                             style: const TextStyle(
                               fontSize: 12,
                               color: Color(0xFF64748B),

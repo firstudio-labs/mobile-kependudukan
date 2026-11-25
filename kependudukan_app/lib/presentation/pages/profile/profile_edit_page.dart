@@ -277,40 +277,42 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   // Komponen Label yang lebih elegan
   Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: FontWeight.w600,
-          color:
-              Color(0xFF475569), // Warna slate (abu-abu kebiruan) yang modern
+          color: Color(0xFF1E293B),
         ),
       ),
     );
   }
 
-  // Komponen Header Section
+  // Komponen Header Section - style domisili (garis vertikal biru)
   Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 4,
+            height: 18,
             decoration: BoxDecoration(
-              color: const Color(0xFFEEF2FF),
-              borderRadius: BorderRadius.circular(10),
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(2),
             ),
-            child: Icon(icon, color: AppTheme.primaryColor, size: 20),
           ),
-          const SizedBox(width: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primaryColor,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ],
@@ -2239,14 +2241,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Colors.white, // Background terang dan bersih
+        backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
           centerTitle: true,
           title: const Text(
             'Edit Profil',
             style: TextStyle(
-              color:
-                  AppTheme.primaryColor, // Teks biru gelap yang lebih berwibawa
+              color: AppTheme.primaryColor,
               fontWeight: FontWeight.bold,
               fontSize: 18,
             ),
@@ -2264,348 +2265,363 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               child: KeyedSubtree(
                 key: ValueKey(_refreshKey),
                 child: ListView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    // Section Data Pribadi
-                    _buildSectionHeader(
-                        'Data Pribadi', Icons.person_outline_rounded),
 
-                    // Tanpa dropdown NIK (otomatis pakai NIK sendiri)
-                    const SizedBox.shrink(),
-
-                    _buildTextField(
-                      controller: _nameController,
-                      label: 'Nama Lengkap',
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _kkController,
-                      label: 'Nomor Kartu Keluarga (KK)',
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _jenisKelaminController,
-                      label: 'Jenis Kelamin',
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _umurController,
-                      label: 'Umur',
-                      keyboardType: TextInputType.number,
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _tempatLahirController,
-                      label: 'Tempat Lahir',
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _tanggalLahirController,
-                      label: 'Tanggal Lahir (YYYY-MM-DD)',
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _alamatController,
-                      label: 'Alamat',
-                      maxLines: 3,
-                      enabled: false,
-                    ),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _rtController,
-                            label: 'RT',
-                            enabled: false,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _rwController,
-                            label: 'RW',
-                            enabled: false,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    _buildTextField(
-                      controller: _provinsiController,
-                      label: 'Provinsi',
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _kabupatenController,
-                      label: 'Kabupaten',
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _kecamatanController,
-                      label: 'Kecamatan',
-                      enabled: false,
-                    ),
-                    _buildTextField(
-                      controller: _desaController,
-                      label: 'Desa',
-                      enabled: false,
-                    ),
-
-                    _buildBloodTypeDropdown(),
-                    _buildEducationDropdown(),
-                    _buildJobDropdown(),
-
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Divider(color: Color(0xFFF1F5F9), thickness: 2),
-                    ),
-
-                    // Section Informasi Usaha
-                    _buildSectionHeader('Informasi Usaha (Opsional)',
-                        Icons.storefront_outlined),
-
-                    _buildTextField(
-                      controller: _usahaNamaController,
-                      label: 'Nama Usaha',
-                    ),
-
-                    _buildLabel('Kelompok Usaha'),
-                    DropdownButtonFormField<String>(
-                      value: _selectedUsahaKelompok,
-                      isExpanded: true,
-                      hint: const Text('Pilih kelompok usaha',
-                          style: TextStyle(
-                              fontSize: 14, color: Color(0xFF94A3B8))),
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        focusedBorder: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
-                          borderSide: BorderSide(
-                              color: AppTheme.primaryColor, width: 1.5),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      items: _kelompokUsahaOptions
-                          .map((opt) => DropdownMenuItem<String>(
-                                value: opt,
-                                child: Text(opt,
-                                    style: const TextStyle(
-                                        fontSize: 14, color: Color(0xFF1E293B)),
-                                    overflow: TextOverflow.ellipsis),
-                              ))
-                          .toList(),
-                      onChanged: (val) {
-                        setState(() {
-                          _selectedUsahaKelompok = val;
-                          _usahaKelompokController.text = val ?? '';
-                        });
-                      },
-                      validator: (_) => null,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildTextField(
-                      controller: _usahaAlamatController,
-                      label: 'Alamat Usaha',
-                      maxLines: 2,
-                    ),
-
-                    // Baris Pencarian yang Rapih & Proporsional
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 48,
-                            child: TextField(
-                              controller: _usahaSearchController,
-                              style: const TextStyle(fontSize: 14),
-                              decoration: InputDecoration(
-                                hintText: 'Cari lokasi',
-                                hintStyle: const TextStyle(
-                                    fontSize: 14, color: Color(0xFF94A3B8)),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey[300]!),
-                                ),
-                                focusedBorder: const OutlineInputBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(8)),
-                                  borderSide: BorderSide(
-                                      color: AppTheme.primaryColor, width: 1.5),
-                                ),
-                                contentPadding:
-                                    const EdgeInsets.symmetric(horizontal: 14),
-                                filled: true,
-                                fillColor: Colors.white,
-                              ),
-                              onSubmitted: (_) => _searchUsahaLocation(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: _isSearchingUsahaAddress
-                                ? null
-                                : _searchUsahaLocation,
-                            icon: _isSearchingUsahaAddress
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : const Icon(Icons.search, size: 18),
-                            label: const Text('Cari',
-                                style: TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          height: 48,
-                          width: 48,
-                          child: ElevatedButton(
-                            onPressed: _setUsahaToCurrentLocation,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Icon(Icons.my_location, size: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    ExpansionTile(
-                      leading: const Icon(Icons.map_outlined),
-                      title: const Text('Pilih lokasi usaha di peta'),
-                      tilePadding: EdgeInsets.zero,
-                      childrenPadding: const EdgeInsets.only(bottom: 16),
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey[300]!),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(11),
-                            child: LocationMapComponent(
-                              initialPosition: _usahaPosition,
-                              mode: MapMode.select,
-                              mapController: _usahaMapController,
-                              height: 200,
-                              onLocationSelected: (pos) {
-                                setState(() {
-                                  _usahaPosition = pos;
-                                  _usahaTagLokasiController.text =
-                                      '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
-                                });
-                                _reverseGeocodeUsaha(pos);
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildTextField(
-                      controller: _usahaTagLokasiController,
-                      label: 'Tag Lokasi (Otomatis / Input Manual)',
-                    ),
-
-                    _buildUsahaPhotoPreview(),
-                    const SizedBox(height: 8),
-
-                    // Tombol Minta Persetujuan (Primary Button)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton(
-                        onPressed: _isRequestingApproval
-                            ? null
-                            : _requestAdminApproval,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          elevation: 2, // Sedikit efek pop up
-                          shadowColor: AppTheme.primaryColor.withOpacity(0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: _isRequestingApproval
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white),
-                                ),
-                              )
-                            : const Text(
-                                'Minta Persetujuan Admin',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Kotak Informasi Biru (Clean and Modern)
+                    // Card: Data Pribadi (readonly)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 16),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEEF2FF), // Indigo 50
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader('Data Pribadi', Icons.person_outline_rounded),
+
+                          const SizedBox.shrink(),
+
+                          _buildTextField(
+                            controller: _nameController,
+                            label: 'Nama Lengkap',
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _kkController,
+                            label: 'Nomor Kartu Keluarga (KK)',
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _jenisKelaminController,
+                            label: 'Jenis Kelamin',
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _umurController,
+                            label: 'Umur',
+                            keyboardType: TextInputType.number,
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _tempatLahirController,
+                            label: 'Tempat Lahir',
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _tanggalLahirController,
+                            label: 'Tanggal Lahir (YYYY-MM-DD)',
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _alamatController,
+                            label: 'Alamat',
+                            maxLines: 3,
+                            enabled: false,
+                          ),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: _rtController,
+                                  label: 'RT',
+                                  enabled: false,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: _rwController,
+                                  label: 'RW',
+                                  enabled: false,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          _buildTextField(
+                            controller: _provinsiController,
+                            label: 'Provinsi',
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _kabupatenController,
+                            label: 'Kabupaten',
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _kecamatanController,
+                            label: 'Kecamatan',
+                            enabled: false,
+                          ),
+                          _buildTextField(
+                            controller: _desaController,
+                            label: 'Desa',
+                            enabled: false,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Card: Data yang Bisa Diubah
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader('Data yang Dapat Diubah', Icons.edit_outlined),
+                          _buildBloodTypeDropdown(),
+                          _buildEducationDropdown(),
+                          _buildJobDropdown(),
+                        ],
+                      ),
+                    ),
+
+                    // Card: Informasi Usaha
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader('Informasi Usaha (Opsional)', Icons.storefront_outlined),
+
+                          _buildTextField(
+                            controller: _usahaNamaController,
+                            label: 'Nama Usaha',
+                          ),
+
+                          _buildLabel('Kelompok Usaha'),
+                          DropdownButtonFormField<String>(
+                            value: _selectedUsahaKelompok,
+                            isExpanded: true,
+                            hint: const Text('Pilih kelompok usaha',
+                                style: TextStyle(
+                                    fontSize: 14, color: Color(0xFF94A3B8))),
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: const OutlineInputBorder(
+                                borderRadius: BorderRadius.all(Radius.circular(10)),
+                                borderSide: BorderSide(
+                                    color: AppTheme.primaryColor, width: 1.5),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            items: _kelompokUsahaOptions
+                                .map((opt) => DropdownMenuItem<String>(
+                                      value: opt,
+                                      child: Text(opt,
+                                          style: const TextStyle(
+                                              fontSize: 14, color: Color(0xFF1E293B)),
+                                          overflow: TextOverflow.ellipsis),
+                                    ))
+                                .toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedUsahaKelompok = val;
+                                _usahaKelompokController.text = val ?? '';
+                              });
+                            },
+                            validator: (_) => null,
+                          ),
+                          const SizedBox(height: 16),
+
+                          _buildTextField(
+                            controller: _usahaAlamatController,
+                            label: 'Alamat Usaha',
+                            maxLines: 2,
+                          ),
+
+                          // Baris Pencarian Lokasi Usaha
+                          Row(
+                            children: [
+                              Expanded(
+                                child: SizedBox(
+                                  height: 48,
+                                  child: TextField(
+                                    controller: _usahaSearchController,
+                                    style: const TextStyle(fontSize: 14),
+                                    decoration: InputDecoration(
+                                      hintText: 'Cari lokasi',
+                                      hintStyle: const TextStyle(
+                                          fontSize: 14, color: Color(0xFF94A3B8)),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide:
+                                            BorderSide(color: Colors.grey[300]!),
+                                      ),
+                                      focusedBorder: const OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.all(Radius.circular(8)),
+                                        borderSide: BorderSide(
+                                            color: AppTheme.primaryColor, width: 1.5),
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(horizontal: 14),
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                    ),
+                                    onSubmitted: (_) => _searchUsahaLocation(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isSearchingUsahaAddress
+                                      ? null
+                                      : _searchUsahaLocation,
+                                  icon: _isSearchingUsahaAddress
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2, color: Colors.white))
+                                      : const Icon(Icons.search, size: 18),
+                                  label: const Text('Cari',
+                                      style: TextStyle(
+                                          fontSize: 14, fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding:
+                                        const EdgeInsets.symmetric(horizontal: 16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 48,
+                                width: 48,
+                                child: ElevatedButton(
+                                  onPressed: _setUsahaToCurrentLocation,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Icon(Icons.my_location, size: 20),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          ExpansionTile(
+                            leading: const Icon(Icons.map_outlined),
+                            title: const Text('Pilih lokasi usaha di peta'),
+                            tilePadding: EdgeInsets.zero,
+                            childrenPadding: const EdgeInsets.only(bottom: 16),
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(11),
+                                  child: LocationMapComponent(
+                                    initialPosition: _usahaPosition,
+                                    mode: MapMode.select,
+                                    mapController: _usahaMapController,
+                                    height: 200,
+                                    onLocationSelected: (pos) {
+                                      setState(() {
+                                        _usahaPosition = pos;
+                                        _usahaTagLokasiController.text =
+                                            '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
+                                      });
+                                      _reverseGeocodeUsaha(pos);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          _buildTextField(
+                            controller: _usahaTagLokasiController,
+                            label: 'Tag Lokasi (Otomatis / Input Manual)',
+                          ),
+
+                          _buildUsahaPhotoPreview(),
+                        ],
+                      ),
+                    ),
+
+                    // Info box
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF2FF),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: const Color(0xFFC7D2FE)), // Indigo 200
+                        border: Border.all(color: const Color(0xFFC7D2FE)),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(Icons.info_outline_rounded,
-                              color: Color(0xFF4338CA), size: 20),
-                          const SizedBox(width: 12),
+                              color: Color(0xFF4338CA), size: 18),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'Perubahan data akan diproses setelah mendapat persetujuan dari admin desa',
@@ -2620,7 +2636,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32), // Spacing bawah yang cukup
+
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -2634,6 +2651,54 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 ),
               ),
           ],
+        ),
+        bottomNavigationBar: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: const Border(
+              top: BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isRequestingApproval ? null : _requestAdminApproval,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isRequestingApproval
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'KIRIM PERMINTAAN PERUBAHAN',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+            ),
+          ),
         ));
   }
 

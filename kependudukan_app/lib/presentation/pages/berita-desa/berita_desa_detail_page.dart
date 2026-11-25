@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:http/http.dart' as http;
 import 'package:ladimas/core/theme/app_theme.dart';
+import 'package:ladimas/core/utils/app_date_formatter.dart';
 import '../../../data/datasources/berita_desa_api_service.dart';
 import '../../../data/datasources/auth_local_storage.dart';
 import '../../../data/models/berita_desa_model.dart';
@@ -57,12 +58,7 @@ class _BeritaDesaDetailPageState extends State<BeritaDesaDetailPage> {
   }
 
   String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('dd MMMM yyyy HH:mm', 'id_ID').format(date);
-    } catch (_) {
-      return dateString;
-    }
+    return AppDateFormatter.formatDateTime(dateString);
   }
 
   @override
