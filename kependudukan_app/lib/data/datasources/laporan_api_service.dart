@@ -43,6 +43,25 @@ class RuangLingkupData {
       keterangan: json['keterangan'] ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'ruang_lingkup': ruangLingkup,
+      'bidang': bidang,
+      'keterangan': keterangan,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RuangLingkupData &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 class VillageReportApiService {
@@ -88,43 +107,92 @@ class VillageReportApiService {
     return token;
   }
 
-  Future<List<RuangLingkupData>> getLaporDesaOptions() async {
+  Future<List<RuangLingkupData>> getLaporDesaOptions(
+      {bool forceRefresh = false}) async {
     try {
+      const key = 'ruang_lingkup_options_v2';
+
+      if (!forceRefresh) {
+        final cached = _cache.get<List<RuangLingkupData>>(key);
+        if (cached != null && cached.isNotEmpty) return cached;
+      }
+
+      final token = await _getAuthToken();
+      final url = '${AppConstants.authApiUrl}/user/laporan-desa/create';
+      print('🌐 [LAPORAN_API] Requesting URL: $url');
+
       final response = await client.get(
-        Uri.parse('${AppConstants.authApiUrl}/lapor-desa'),
+        Uri.parse(url),
         headers: {
           'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
           'X-API-Key': AppConstants.apiKey,
         },
       );
 
+      print('📥 [LAPORAN_API] Status: ${response.statusCode}');
+      print('📥 [LAPORAN_API] Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        final data = jsonResponse['data'];
+        final List<RuangLingkupData> result = [];
 
-        if (jsonResponse['status'] == 'success' &&
-            jsonResponse['data'] is List) {
-          final List<dynamic> optionsData = jsonResponse['data'];
-          return optionsData
-              .map((data) => RuangLingkupData.fromJson(data))
-              .toList();
-        } else {
-          throw ServerException(
-              message: jsonResponse['message'] ??
-                  'Gagal mendapatkan data ruang lingkup');
+        // Format 1 (Sesuai Controller Api\LaporanDesaController@create):
+        // data: { "categories": { "Nama Ruang Lingkup": [ { "id": 1, "bidang": "..." } ] } }
+        if (data is Map && data['categories'] is Map) {
+          final categories = data['categories'] as Map<String, dynamic>;
+          categories.forEach((ruangLingkup, bidangList) {
+            if (bidangList is List) {
+              for (final item in bidangList) {
+                if (item is Map) {
+                  final rawId = item['id'];
+                  int id = 0;
+                  if (rawId is int) {
+                    id = rawId;
+                  } else if (rawId is String) {
+                    id = int.tryParse(rawId) ?? 0;
+                  }
+                  result.add(RuangLingkupData(
+                    id: id,
+                    ruangLingkup: ruangLingkup.toString().trim(),
+                    bidang: (item['bidang'] ?? '').toString().trim(),
+                    keterangan: (item['keterangan'] ?? '').toString().trim(),
+                  ));
+                }
+              }
+            }
+          });
+        } else if (data is List) {
+          // Format 2: fallback format list langsung
+          for (final item in data) {
+            if (item is Map<String, dynamic>) {
+              result.add(RuangLingkupData.fromJson(item));
+            }
+          }
         }
+
+        if (result.isNotEmpty) {
+          _cache.set<List<RuangLingkupData>>(key, result,
+              ttl: const Duration(hours: 1));
+        }
+        return result;
       } else if (response.statusCode == 401) {
-        throw AuthException(message: 'Tidak diizinkan: Api key tidak valid');
+        throw AuthException(
+            message: 'Tidak diizinkan: Sesi atau token tidak valid');
       } else {
-        throw ServerException(
-            message:
-                'Gagal mendapatkan data ruang lingkup: ${response.statusCode}');
+        String msg = 'Gagal memuat kategori laporan: ${response.statusCode}';
+        try {
+          final errJson = json.decode(response.body);
+          if (errJson is Map && errJson['message'] != null) {
+            msg = errJson['message'].toString();
+          }
+        } catch (_) {}
+        throw ServerException(message: msg);
       }
     } catch (e) {
-      if (e is AuthException || e is ServerException) {
-        rethrow;
-      }
-      throw ServerException(
-          message: 'Gagal mendapatkan data ruang lingkup: ${e.toString()}');
+      print('⚠️ [LAPORAN_API] Error getLaporDesaOptions: $e');
+      rethrow;
     }
   }
 
@@ -157,10 +225,12 @@ class VillageReportApiService {
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
+          'X-API-Key': AppConstants.apiKey,
         },
       );
 
       if (response.statusCode == 200) {
+        print('📥 [LAPORAN_API] Response body /lapor-desa: ${response.body}');
         final Map<String, dynamic> jsonResponse = json.decode(response.body);
 
         if (jsonResponse['status'] == 'success' &&
@@ -220,6 +290,7 @@ class VillageReportApiService {
       request.headers.addAll({
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
+        'X-API-Key': AppConstants.apiKey,
       });
 
       // Add text fields

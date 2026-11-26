@@ -34,7 +34,27 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
   final _imagePicker = ImagePicker();
 
   List<RuangLingkupData> _ruangLingkupOptions = [];
+  String? _selectedRuangLingkup;
   RuangLingkupData? _selectedOption;
+  String? _optionsError;
+
+  List<String> get _ruangLingkupNames {
+    final seen = <String>{};
+    final names = <String>[];
+    for (final option in _ruangLingkupOptions) {
+      final name = option.ruangLingkup.trim();
+      if (name.isNotEmpty && seen.add(name)) names.add(name);
+    }
+    return names;
+  }
+
+  List<RuangLingkupData> get _bidangOptions {
+    final selected = _selectedRuangLingkup;
+    if (selected == null) return const [];
+    return _ruangLingkupOptions
+        .where((option) => option.ruangLingkup.trim() == selected)
+        .toList();
+  }
 
   // Default location - can be customized to current user's village
   LatLng _selectedLocation = const LatLng(-7.310000, 110.290000);
@@ -180,19 +200,41 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
     try {
       setState(() {
         _isLoadingOptions = true;
+        _optionsError = null;
       });
 
       final options = await _apiService.getLaporDesaOptions();
+      print('🐞 [LAPOR-DESA] _loadRuangLingkupOptions sukses: '
+          '${options.length} opsi diterima');
 
       if (!mounted) return;
       setState(() {
         _ruangLingkupOptions = options;
+        _optionsError = null;
         _isLoadingOptions = false;
+
+        final hasSelectedRuangLingkup = _selectedRuangLingkup != null &&
+            options.any((option) =>
+                option.ruangLingkup.trim() == _selectedRuangLingkup);
+        if (!hasSelectedRuangLingkup) {
+          _selectedRuangLingkup = null;
+        }
+
+        final hasSelectedOption = _selectedOption != null &&
+            options.any((option) =>
+                option.id == _selectedOption!.id &&
+                option.ruangLingkup.trim() == _selectedRuangLingkup);
+        if (!hasSelectedOption) {
+          _selectedOption = null;
+        }
       });
     } catch (e) {
+      print('🐞 [LAPOR-DESA] _loadRuangLingkupOptions gagal: $e');
       if (!mounted) return;
       setState(() {
+        _ruangLingkupOptions = [];
         _isLoadingOptions = false;
+        _optionsError = e.toString();
       });
       MessageService.showErrorSnackBar(
           context, 'Gagal memuat data ruang lingkup: ${e.toString()}');
@@ -242,7 +284,7 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
 
     if (_selectedOption == null) {
       MessageService.showErrorSnackBar(
-          context, 'Mohon pilih ruang lingkup laporan');
+          context, 'Mohon pilih bidang laporan');
       return;
     }
 
@@ -340,95 +382,127 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Ruang Lingkup dan Bidang
+                          // Ruang Lingkup
                           _buildFieldLabel(
-                              label: 'Ruang Lingkup & Bidang',
-                              isRequired: true),
+                              label: 'Ruang Lingkup', isRequired: true),
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<RuangLingkupData>(
+                          DropdownButtonFormField<String>(
                             isExpanded: true,
-                            decoration: InputDecoration(
-                              hintText: 'Pilih Ruang Lingkup',
-                              hintStyle: const TextStyle(
-                                  fontSize: 13, color: Color(0xFF94A3B8)),
-                              prefixIcon: const Icon(Icons.category_rounded,
-                                  size: 20, color: Color(0xFF64748B)),
-                              filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFE2E8F0)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                    color: AppTheme.primaryColor, width: 1.5),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(color: Colors.red),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                    color: Colors.red, width: 1.5),
-                              ),
+                            icon: const Icon(Icons.arrow_drop_down_rounded,
+                                color: Color(0xFF64748B), size: 28),
+                            decoration: _dropdownDecoration(
+                              hint: _isLoadingOptions
+                                  ? 'Memuat data ruang lingkup...'
+                                  : (_ruangLingkupNames.isEmpty
+                                      ? 'Belum ada data dari admin desa'
+                                      : 'Pilih Ruang Lingkup'),
+                              icon: Icons.category_rounded,
                             ),
-                            initialValue: _selectedOption,
-                            items: _ruangLingkupOptions.map((option) {
-                              return DropdownMenuItem<RuangLingkupData>(
-                                value: option,
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        option.ruangLingkup,
-                                        style: const TextStyle(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1E293B),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        option.bidang,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF64748B),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                            value: _selectedRuangLingkup,
+                            items: _ruangLingkupNames.map((name) {
+                              return DropdownMenuItem<String>(
+                                value: name,
+                                child: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               );
                             }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedOption = value;
-                              });
-                            },
+                            onChanged: _ruangLingkupNames.isEmpty
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _selectedRuangLingkup = value;
+                                      _selectedOption = null;
+                                    });
+                                  },
                             validator: (value) {
                               if (value == null) {
                                 return 'Ruang lingkup harus dipilih';
+                              }
+                              return null;
+                            },
+                          ),
+                          if (_optionsError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, left: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Gagal memuat: $_optionsError',
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.red),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => _loadRuangLingkupOptions(),
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                    ),
+                                    child: const Text('Coba Lagi',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 18),
+
+                          // Bidang
+                          _buildFieldLabel(label: 'Bidang', isRequired: true),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<RuangLingkupData>(
+                            key: ValueKey(
+                                'bidang_dropdown_${_selectedRuangLingkup ?? "none"}'),
+                            isExpanded: true,
+                            icon: const Icon(Icons.arrow_drop_down_rounded,
+                                color: Color(0xFF64748B), size: 28),
+                            decoration: _dropdownDecoration(
+                              hint: _selectedRuangLingkup == null
+                                  ? 'Pilih Ruang Lingkup terlebih dahulu'
+                                  : (_bidangOptions.isEmpty
+                                      ? 'Belum ada bidang untuk opsi ini'
+                                      : 'Pilih Bidang'),
+                              icon: Icons.account_tree_rounded,
+                            ),
+                            value: _selectedOption,
+                            items: _bidangOptions.map((option) {
+                              return DropdownMenuItem<RuangLingkupData>(
+                                value: option,
+                                child: Text(
+                                  option.bidang,
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (_selectedRuangLingkup == null ||
+                                    _bidangOptions.isEmpty)
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _selectedOption = value;
+                                    });
+                                  },
+                            validator: (value) {
+                              if (_selectedRuangLingkup == null) {
+                                return 'Pilih ruang lingkup terlebih dahulu';
+                              }
+                              if (value == null) {
+                                return 'Bidang harus dipilih';
                               }
                               return null;
                             },
@@ -1042,6 +1116,40 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
                 ),
               ),
             ),
+    );
+  }
+
+  InputDecoration _dropdownDecoration({
+    required String hint,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+      prefixIcon: Icon(icon, size: 20, color: const Color(0xFF64748B)),
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
     );
   }
 
